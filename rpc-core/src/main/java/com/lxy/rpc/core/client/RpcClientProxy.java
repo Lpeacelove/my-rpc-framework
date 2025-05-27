@@ -42,8 +42,9 @@ public class RpcClientProxy implements InvocationHandler {
                 method.getParameterTypes(),
                 args);
         try (Socket socket = new Socket(host, port);
-             ObjectInputStream input = new ObjectInputStream(socket.getInputStream());
-             ObjectOutputStream output = new ObjectOutputStream(socket.getOutputStream())){
+             ObjectOutputStream output = new ObjectOutputStream(socket.getOutputStream());
+             ObjectInputStream input = new ObjectInputStream(socket.getInputStream())){
+            System.out.println("invoke 连接获取成功");
             // 1. 发送请求
             output.writeObject(request);
             output.flush();

@@ -23,14 +23,16 @@ public class RpcRequestHandler implements Runnable{
     public RpcRequestHandler(Socket socket, LocalServiceRegistry serviceRegistry) {
         this.socket = socket;
         this.serviceRegistry = serviceRegistry;
+        System.out.println("RpcRequestHandler 构造器执行了");
     }
 
     @Override
     public void run() {
+        System.out.println("RpcRequestHandler run 方法开始执行");
         // 先获取连接
         try (ObjectInputStream inputStream = new ObjectInputStream(socket.getInputStream());
              ObjectOutputStream outputStream = new ObjectOutputStream(socket.getOutputStream())) {
-
+            System.out.println("RpcRequestHandler run 方法获取连接成功");
             // 1. 接收请求
             RpcRequest request = (RpcRequest) inputStream.readObject();
             logger.info("服务端：收到请求 {}", request);
