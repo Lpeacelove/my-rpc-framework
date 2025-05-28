@@ -8,4 +8,6 @@ public class MessageConstant {
     // 序列化消息
     public static final String JDK_SERIALIZE_FAIL = "JDK 序列化失败";
     public static final String JDK_DESERIALIZE_FAIL = "JDK 反序列化失败";
+    public static final String KRYO_SERIALIZE_FAIL = "KRYO 序列化失败";
+    public static final String KRYO_DESERIALIZE_FAIL = "KRYO 反序列化失败";
 }

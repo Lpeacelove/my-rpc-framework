@@ -27,6 +27,7 @@ public class JdkSerializer implements Serializer{
         try(ByteArrayOutputStream bos = new ByteArrayOutputStream();
             ObjectOutputStream oos = new ObjectOutputStream(bos)) {
             oos.writeObject(object);
+            oos.flush();
             return bos.toByteArray();
         } catch (Exception e) {
             throw new SerializationException(JDK_SERIALIZE_FAIL);
