@@ -117,7 +117,7 @@ public class RpcClientProxy implements InvocationHandler {
             return response.getResult();
         } catch (Exception e) {
             logger.error("客户端: 调用远程方法失败 " + method.getName(), e);
-            throw new RuntimeException("客户端: 调用远程方法失败, method: " + method.getName() +
+            throw new RuntimeException(MessageConstant.CLIENT_REMOTE_METHOD_FAIL + "method: " + method.getName() +
                     "host: " + host + "port: " + port, e);
         }
 
