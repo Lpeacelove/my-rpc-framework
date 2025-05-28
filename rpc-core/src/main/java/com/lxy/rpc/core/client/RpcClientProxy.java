@@ -48,28 +48,7 @@ public class RpcClientProxy implements InvocationHandler {
                 method.getName(),
                 method.getParameterTypes(),
                 args);
-//        try (Socket socket = new Socket(host, port);
-//             ObjectOutputStream output = new ObjectOutputStream(socket.getOutputStream());
-//             ObjectInputStream input = new ObjectInputStream(socket.getInputStream())){
-//            System.out.println("invoke 连接获取成功");
-//            // 1. 发送请求
-//            output.writeObject(request);
-//            output.flush();
-//            logger.info("客户端: 发送请求, {}...等待服务端返回结果...",  request);
-//
-//            // 2. 接收响应
-//            RpcResponse  response = (RpcResponse) input.readObject();
-//            if (response == null) {
-//                throw new RuntimeException("客户端: 返回响应是null");
-//            }
-//            if (response.hasException()) {
-//                throw response.getException();
-//            }
-//            return response.getResult();
-//        } catch (Exception e) {
-//            logger.error("客户端: 调用远程方法失败 " + method.getName(), e);
-//            throw new RuntimeException("客户端: 调用远程方法失败 " + e);
-//        }
+
         try (Socket socket = new Socket(host, port);
              OutputStream outputStream = socket.getOutputStream();
              InputStream inputStream = socket.getInputStream()) {
@@ -117,6 +96,7 @@ public class RpcClientProxy implements InvocationHandler {
             return response.getResult();
         } catch (Exception e) {
             logger.error("客户端: 调用远程方法失败 " + method.getName(), e);
+            e.printStackTrace();
             throw new RuntimeException(MessageConstant.CLIENT_REMOTE_METHOD_FAIL + "method: " + method.getName() +
                     "host: " + host + "port: " + port, e);
         }

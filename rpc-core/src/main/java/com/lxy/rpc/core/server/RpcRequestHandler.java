@@ -104,6 +104,7 @@ public class RpcRequestHandler implements Runnable{
             logger.info("服务端：返回结果 {}", response);
         } catch (Exception e) {
             logger.error("服务端：错误处理发生在 " + socket.getRemoteSocketAddress(), e);
+            e.printStackTrace();
             throw new RuntimeException(MessageConstant.SERVER_HANDLE_REQUEST_FAIL);
         } finally {
             try {
@@ -112,6 +113,7 @@ public class RpcRequestHandler implements Runnable{
                 }
             } catch (Exception e) {
                 logger.error("服务端：关闭 socket 失败", e);
+                e.printStackTrace();
             }
         }
 

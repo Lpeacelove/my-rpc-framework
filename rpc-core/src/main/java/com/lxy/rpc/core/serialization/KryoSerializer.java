@@ -31,6 +31,7 @@ public class KryoSerializer implements Serializer{
         // 注册顺序在 setRegistrationRequired(false) 时很重要
         kryo.register(RpcRequest.class);
         kryo.register(RpcResponse.class);
+        kryo.register(Class.class); //
         kryo.register(Class[].class); // 注册RpcRequest 的参数类型数组
         kryo.register(Object[].class); // 注册RpcRequest 的参数数组
         kryo.register(String.class); // 注册RpcRequest 的参数名称
@@ -54,6 +55,7 @@ public class KryoSerializer implements Serializer{
 //            output.flush(); output在close时会自动flush
             return output.toBytes(); // 获取底层流的字节
         } catch (Exception e) {
+            e.printStackTrace();
             throw new SerializationException(MessageConstant.KRYO_SERIALIZE_FAIL);
         }
     }
@@ -72,6 +74,7 @@ public class KryoSerializer implements Serializer{
              Input input = new Input(bis)) {
             return kryoThreadLocal.get().readObject(input, clazz); // 读取并转换为指定类型
         } catch (Exception e) {
+            e.printStackTrace();
             throw new SerializationException(MessageConstant.KRYO_DESERIALIZE_FAIL);
         }
     }
