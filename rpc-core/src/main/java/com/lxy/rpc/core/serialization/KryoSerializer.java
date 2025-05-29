@@ -75,8 +75,10 @@ public class KryoSerializer implements Serializer{
             return kryoThreadLocal.get().readObject(input, clazz); // 读取并转换为指定类型
         } catch (Exception e) {
             e.printStackTrace();
-            throw new SerializationException(MessageConstant.KRYO_DESERIALIZE_FAIL);
+//            throw new SerializationException(MessageConstant.KRYO_DESERIALIZE_FAIL);
+            throw new RuntimeException("Kryo 反序列化失败: " + e.getMessage(), e);
         }
+
     }
 
     @Override

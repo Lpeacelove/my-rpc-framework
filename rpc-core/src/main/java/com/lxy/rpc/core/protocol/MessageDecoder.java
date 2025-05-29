@@ -1,5 +1,7 @@
 package com.lxy.rpc.core.protocol;
 
+import com.lxy.rpc.api.dto.RpcRequest;
+import com.lxy.rpc.api.dto.RpcResponse;
 import com.lxy.rpc.core.common.constant.MessageConstant;
 import com.lxy.rpc.core.common.exception.ProtocolException;
 import com.lxy.rpc.core.serialization.Serializer;

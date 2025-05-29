@@ -30,6 +30,9 @@ public class MessageConstant {
     public static final String BODY_LENGTH_ZERO = "消息体长度为0";
     public static final String BODY_LENGTH_NOT_EQUAL_TO_BODY_LENGTH = "实际消息体长度与请求头中长度不等";
     public static final String UNSUPPORTED_MSG_TYPE = "不支持的消息类型";
+    public static final String MSG_TYPE_WRONG = "错误的消息类型";
+    public static final String REQUEST_ID_NOT_MATCH = "请求ID不匹配";
+
 
 
 }

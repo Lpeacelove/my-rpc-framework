@@ -23,6 +23,14 @@ public class RpcResponse implements Serializable {
         this.exception = exception;
     }
 
+    public String getResponseId() {
+        return responseId;
+    }
+
+    public void setResponseId(String responseId) {
+        this.responseId = responseId;
+    }
+
     public Object getResult() {
         return result;
     }
