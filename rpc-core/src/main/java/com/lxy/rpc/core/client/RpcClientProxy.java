@@ -80,13 +80,6 @@ public class RpcClientProxy implements InvocationHandler {
             outputStream.write(encode);
             outputStream.flush();
 
-//            // 1. 在流中加入序列化算法
-//            outputStream.write(this.serializer.getSerializerAlgorithm());
-//            // 2. 使用序列化器将请求体序列化
-//            byte[] bytes = this.serializer.serialize(request);
-//            // 3. 将请求体写入流中（暂时不设计较复杂的协议，只考虑最简单的）
-//            outputStream.write(bytes);
-//            outputStream.flush();
             logger.info("客户端: 发送请求, {}...等待服务端返回结果...",  encode);
             socket.shutdownOutput(); // 主动关闭输出流，告知服务端请求数据发送完毕 (对BIO读取很重要)
 
@@ -101,6 +94,9 @@ public class RpcClientProxy implements InvocationHandler {
             if (responseMessage.getHeader().getRequestID() != Long.parseLong(request.getRequestId())) {
                 throw new SerializationException(MessageConstant.REQUEST_ID_NOT_MATCH);
             }
+            if (responseMessage.getHeader().getStatus() == RpcProtocolConstant.STATUS_FAIL) {
+                throw new SerializationException(MessageConstant.STATUS_FAIL);
+            }
 
             RpcResponse response = responseMessage.getBody();
             if (response == null) {
@@ -110,35 +106,7 @@ public class RpcClientProxy implements InvocationHandler {
                 throw response.getException();
             }
             return response.getResult();
-//            int responseSerializerAlgorithm = inputStream.read();
-//            if (responseSerializerAlgorithm == -1) {
-//                throw new SerializationException(MessageConstant.RESPONSE_SERIALIZER_ALGORITHM_NOT_FOUND);
-//            }
-//            Serializer responseSerializer = SerializerFactory.getSerializer((byte) responseSerializerAlgorithm);
-//
-//            // 5. 读取响应流
-//            ByteArrayOutputStream responseBaos = new ByteArrayOutputStream();
-//            byte[] buffer = new byte[1024];
-//            int bytesRead;
-//            while ((bytesRead = inputStream.read(buffer)) != -1) {
-//                responseBaos.write(buffer, 0, bytesRead);
-//            }
-//            byte[] responseBytes = responseBaos.toByteArray();
-//
-//            if (responseBytes.length == 0) {
-//                throw new SerializationException(MessageConstant.RESPONSE_BYTE_EMPTY);
-//            }
 
-//            // 6. 反序列化得到响应对象
-//            RpcResponse response = responseSerializer.deserialize(responseBytes, RpcResponse.class);
-//            if (response == null) {
-//                throw new SerializationException(MessageConstant.RESPONSE_DESERIALIZE_EMPTY);
-//            }
-//
-//            if (response.hasException()) {
-//                throw response.getException();
-//            }
-//            return response.getResult();
         } catch (Exception e) {
             logger.error("客户端: 调用远程方法失败 " + method.getName(), e);
             e.printStackTrace();

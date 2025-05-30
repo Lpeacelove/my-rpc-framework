@@ -73,46 +73,6 @@ public class RpcRequestHandler implements Runnable{
             } else {
                 throw new SerializationException(MessageConstant.MSG_TYPE_WRONG);
             }
-
-
-//            // 1. 接收请求
-//            // 1.1 读取请求字节流中的序列化算法ID
-//            int serializerAlgorithm = inputStream.read();
-//            if (serializerAlgorithm == -1) {
-//                throw new SerializationException(MessageConstant.REQUEST_SERIALIZER_ALGORITHM_NOT_FOUND);
-//            }
-//            // 1.2 读取请求字节流
-//            ByteArrayOutputStream  bos = new ByteArrayOutputStream();
-//            byte[] bytes = new byte[4096];
-//            int readBytes = -1;
-//            while ((readBytes = inputStream.read(bytes)) != -1) {
-//                bos.write(bytes, 0, readBytes);
-//            }
-//            byte[] requestBytes = bos.toByteArray();
-//            if (requestBytes.length == 0) {
-//                throw new SerializationException(MessageConstant.REQUEST_BYTE_EMPTY);
-//            }
-//
-//            // 1.3 反序列化得到请求对象
-//            Serializer requestSerializer = SerializerFactory.getSerializer((byte)serializerAlgorithm);
-//            RpcRequest request = requestSerializer.deserialize(requestBytes, RpcRequest.class);
-//            if (request == null) {
-//                throw new SerializationException(MessageConstant.REQUEST_DESERIALIZE_EMPTY);
-//            }
-//            logger.info("服务端：收到请求 {}", request);
-//
-//            // 2. 处理请求
-//            RpcResponse response = handleRequest(request);
-//
-//            // 3. 处理响应结果
-//            // 此处暂时使用相同的序列化算法，后续读取配置文件
-//            Serializer reponseSerializer = SerializerFactory.getDefaultSerializer();
-//            byte responseSerializerAlgorithm = reponseSerializer.getSerializerAlgorithm();
-//            outputStream.write(responseSerializerAlgorithm);
-//            byte[] responseBytes = reponseSerializer.serialize(response);
-//            outputStream.write(responseBytes);
-//            outputStream.flush();
-//            logger.info("服务端：返回结果 {}", response);
         } catch (Exception e) {
             logger.error("服务端：错误处理发生在 " + socket.getRemoteSocketAddress(), e);
             e.printStackTrace();

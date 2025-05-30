@@ -32,6 +32,8 @@ public class MessageConstant {
     public static final String UNSUPPORTED_MSG_TYPE = "不支持的消息类型";
     public static final String MSG_TYPE_WRONG = "错误的消息类型";
     public static final String REQUEST_ID_NOT_MATCH = "请求ID不匹配";
+    public static final String STATUS_FAIL = "响应状态为失败";
+
 
 
 
