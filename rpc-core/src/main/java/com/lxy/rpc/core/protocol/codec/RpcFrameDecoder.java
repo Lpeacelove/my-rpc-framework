@@ -6,8 +6,8 @@ import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 /**
  * 帧解码器，解决粘包/半包问题。利用对“数据长度”的控制，从字节流中分离出完整的帧消息
  */
-public class RpcFrameworkDecoder extends LengthFieldBasedFrameDecoder {
-    public RpcFrameworkDecoder(){
+public class RpcFrameDecoder extends LengthFieldBasedFrameDecoder {
+    public RpcFrameDecoder(){
         super(
                 RpcProtocolConstant.MAX_FRAME_LENGTH, // 最大帧长度.防止恶意攻击或错误导致内存溢出。
                 RpcProtocolConstant.LENGTH_FIELD_OFFSET,  // "数据长度(Data Length)"字段相对于整个消息头起始位置的偏移量。
