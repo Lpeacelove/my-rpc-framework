@@ -26,6 +26,7 @@
     <maven.compiler.target>21</maven.compiler.target>
     <logback.version>1.2.11</logback.version>
     <kryo.version>5.6.2</kryo.version>
+    <netty.version>4.1.76.Final</netty.version>
   </properties>
 
   <dependencyManagement>
@@ -39,6 +40,11 @@
         <groupId>com.esotericsoftware</groupId>
         <artifactId>kryo</artifactId>
         <version>${kryo.version}</version>
+      </dependency>
+      <dependency>
+         <groupId>io.netty</groupId>
+         <artifactId>netty-all</artifactId> <!-- Netty的模块ID，netty-all包含了所有功能 -->
+        <version>${netty.version}</version>
       </dependency>
 
     </dependencies>

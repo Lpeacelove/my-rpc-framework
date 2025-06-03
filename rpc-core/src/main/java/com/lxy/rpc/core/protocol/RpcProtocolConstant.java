@@ -25,6 +25,15 @@ public class RpcProtocolConstant {
     public static final byte STATUS_SUCCESS = 0x01;
     public static final byte STATUS_FAIL = 0x02;
 
+    // Netty 相关常量
+    public static final int MAX_FRAME_LENGTH = 1024 * 1024;
+    public static final int LENGTH_FIELD_OFFSET = 20;
+    public static final int LENGTH_FIELD_LENGTH = 4;
+    public static final int LENGTH_ADJUSTMENT = 0;
+    public static final int INITIAL_BYTES_TO_STRIP = 0;
+
     // 私有化构造器，避免外部创建对象
     private RpcProtocolConstant(){}
+
+
 }
