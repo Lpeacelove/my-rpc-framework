@@ -25,6 +25,9 @@ public class RpcProtocolConstant {
     public static final byte STATUS_SUCCESS = 0x01;
     public static final byte STATUS_FAIL = 0x02;
 
+    // 消息头长度
+    public static final int MESSAGE_HEADER_LENGTH = 20;
+
     // Netty 相关常量
     public static final int MAX_FRAME_LENGTH = 1024 * 1024;
     public static final int LENGTH_FIELD_OFFSET = 20;

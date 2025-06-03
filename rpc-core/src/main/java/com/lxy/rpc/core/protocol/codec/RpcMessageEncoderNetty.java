@@ -15,11 +15,11 @@ public class RpcMessageEncoderNetty extends MessageToByteEncoder<RpcMessage> {
      * Netty会调用这个方法来将 RpcMessage 对象编码成字节流。
      * @param channelHandlerContext 为ChannelHandler提供上下文，可以获取到Channel，ChannelPipeline，ChannelHandler等
      * @param rpcMessage 需要编码的RpcMessage对象
-     * @param byteBuf  输出流
+     * @param out  输出流
      * @throws Exception 编码过程中出现的异常
      */
     @Override
-    protected void encode(ChannelHandlerContext channelHandlerContext, RpcMessage rpcMessage, ByteBuf byteBuf) throws Exception {
+    protected void encode(ChannelHandlerContext channelHandlerContext, RpcMessage rpcMessage, ByteBuf out) throws Exception {
         // 首先判断 是否为空
         if (rpcMessage == null || rpcMessage.getHeader() == null || rpcMessage.getBody() == null) {
             System.out.println("不能对空消息进行编码");
@@ -34,15 +34,15 @@ public class RpcMessageEncoderNetty extends MessageToByteEncoder<RpcMessage> {
         int bodyLength = bodyBytes.length;
 
         // 将消息信息写入输出流
-        byteBuf.writeBytes(RpcProtocolConstant.MAGIC_NUMBER);
-        byteBuf.writeByte(RpcProtocolConstant.VERSION);
-        byteBuf.writeByte(rpcMessage.getHeader().getSerializerAlgorithm());
-        byteBuf.writeByte(rpcMessage.getHeader().getMsgType());
-        byteBuf.writeByte(rpcMessage.getHeader().getStatus());
-        byteBuf.writeLong(rpcMessage.getHeader().getRequestID());
-        byteBuf.writeInt(bodyLength);
+        out.writeBytes(RpcProtocolConstant.MAGIC_NUMBER);
+        out.writeByte(RpcProtocolConstant.VERSION);
+        out.writeByte(rpcMessage.getHeader().getSerializerAlgorithm());
+        out.writeByte(rpcMessage.getHeader().getMsgType());
+        out.writeByte(rpcMessage.getHeader().getStatus());
+        out.writeLong(rpcMessage.getHeader().getRequestID());
+        out.writeInt(bodyLength);
         if (bodyLength > 0) {
-             byteBuf.writeBytes(bodyBytes);
+            out.writeBytes(bodyBytes);
         }
         // Netty 会负责将这个 ByteBuf (out) 发送到网络。
         // 我们不需要手动调用 flush，除非有特殊需求。
