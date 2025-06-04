@@ -3,6 +3,7 @@ package com.lxy.rpc.core.client;
 import com.lxy.rpc.api.dto.RpcRequest;
 import com.lxy.rpc.api.dto.RpcResponse;
 import com.lxy.rpc.core.common.constant.MessageConstant;
+import com.lxy.rpc.core.common.exception.RpcException;
 import com.lxy.rpc.core.common.exception.SerializationException;
 import com.lxy.rpc.core.protocol.*;
 import com.lxy.rpc.core.serialization.Serializer;
@@ -16,6 +17,10 @@ import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.net.Socket;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -25,30 +30,85 @@ public class RpcClientProxy implements InvocationHandler {
     // 记录日志
     private static final Logger logger = LoggerFactory.getLogger(RpcClientProxy.class);
 
-    private final String host;
-    private final int port;
-    private final Serializer serializer;
-    private final MessageEncoder encoder;
-    private final MessageDecoder decoder;
+    private final byte serializerAlgorithm;
+    private final RpcClient rpcClient;
+
+    // 用于生成请求ID，确保在单个客户端实例中唯一。
+    // 如果多个Proxy共享一个RpcClient，这个ID生成器也应该被合理管理。
+    // 简单起见，我们假设每个Proxy有自己的ID序列或都用一个全局的。
+    // 如果 RpcClient 中也用了 AtomicInteger，需要协调，这里为了演示清晰，Proxy也用一个。
+    // 更好的做法是请求ID由 RpcClient 内部生成并填充到 RpcMessage 中。
     private static final AtomicLong REQUEST_ID = new AtomicLong(0);
 
+    // 请求超时时间，单位毫秒
+    private final long requestTimeoutMillis;
+
+    /**
+     * 构造函数，使用默认序列化算法和默认超时时间
+     */
     public RpcClientProxy(String host, int port) {
-        this.host = host;
-        this.port = port;
-        this.serializer = SerializerFactory.getDefaultSerializer(); // 从工厂类获取默认的序列化器
-        this.encoder = new MessageEncoder();
-        this.decoder = new MessageDecoder();
+        this(host, port, SerializerFactory.getDefaultSerializer().getSerializerAlgorithm(), 5000L);
+    }
+
+    public RpcClientProxy(String host, int port, byte serializerAlgorithm, long requestTimeoutMillis) {
+        this.rpcClient = new RpcClient(host, port);
+        this.serializerAlgorithm = serializerAlgorithm;
+        this.requestTimeoutMillis = requestTimeoutMillis > 0 ? requestTimeoutMillis : 5000L;  // 保证超时 > 0
+
+        // 在代理创建时，就尝试与服务端建立连接。
+        // 这是一个可选的策略。也可以在第一次调用时再连接（懒加载）。
+        // 提前连接可以减少第一次调用的延迟。
+        try {
+            System.out.println("RpcClientProxy initializing: attempting to connect to " + host + ":" + port);
+            rpcClient.connect();
+        } catch (Exception e) {
+            if (e instanceof InterruptedException) {
+                Thread.currentThread().interrupt();  // 重新设置中断状态
+                // 连接失败是一个严重问题，可能导致后续所有调用失败，所以这里抛出运行时异常。
+                throw new RpcException("Failed to connect to RPC server [" + host + ":" + port + "] during proxy creation.", e);
+            }
+            // RpcClient.connect() 内部可能已将其他异常包装为RpcException
+            throw e; // 直接重新抛出
+        }
     }
 
     //  创建代理对象，在调用对应方法时，会自动调用下面的invoke方法
     @SuppressWarnings("unchecked")
     public <T> T getProxy(Class<T> calzz) {
-        return (T) Proxy.newProxyInstance(calzz.getClassLoader(), new Class<?>[]{calzz}, this);
+        // 使用Java动态代理创建接口的代理对象
+        // 当调用代理对象的方法时，会执行当前 RpcClientProxy 实例的 invoke 方法
+        return (T) Proxy.newProxyInstance(
+                calzz.getClassLoader(),  // 使用被代理类的类加载器
+                new Class<?>[]{calzz},   // 声明代理要实现的接口
+                this);                   // 指定InvocationHandler为当前RpcClientProxy实例
     }
 
     @Override
     public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
-        logger.info("客户端: 调用在 {}:{} 的方法 {}", host, port, method.getName());
+        // 检查 RpcClient 的连接状态，如果未连接或连接已失效，尝试重连。
+        // 这是一个简单的重试机制，实际项目中可能会更复杂（例如，有限次数重试、指数退避等）。
+        if (this.rpcClient.getChannel() == null || !this.rpcClient.getChannel().isActive()) {
+            System.out.println("RpcClient is not connected to " + rpcClient.getHost() + ":" + rpcClient.getPort() +
+                    ", trying to reconnect...");
+            try {
+                this.rpcClient.connect();
+            } catch (Exception e) {
+                if (e instanceof InterruptedException) {
+                    Thread.currentThread().interrupt();
+                    throw new RuntimeException("RpcClient failed to connect to " +
+                            rpcClient.getHost() + ":" + rpcClient.getPort() + ". Cause: " + e.getMessage(), e);
+                }
+                throw new RuntimeException(e);
+            }
+            // 再次检查连接状态
+            if (this.rpcClient.getChannel() == null || !this.rpcClient.getChannel().isActive()) {
+                throw new RpcException("RPC server [" + rpcClient.getHost() + ":" + rpcClient.getPort() +
+                        "] is not available after attempting reconnect. Method: " + method.getName());
+            }
+            System.out.println("RpcClientProxy: Reconnected successfully.");
+        }
+
+        // 1. 创建RpcRequest对象
         RpcRequest request = new RpcRequest(
                 String.valueOf(REQUEST_ID.getAndIncrement()),
                 method.getDeclaringClass().getName(),
@@ -56,12 +116,12 @@ public class RpcClientProxy implements InvocationHandler {
                 method.getParameterTypes(),
                 args);
 
-        // 封装为 RpcMessage
+        // 2. 封装为 RpcMessage
         RpcMessage<RpcRequest> requestMessage = new RpcMessage<>(
                 new MessageHeader(
                         RpcProtocolConstant.MAGIC_NUMBER,
                         RpcProtocolConstant.VERSION,
-                        this.serializer.getSerializerAlgorithm(),
+                        this.serializerAlgorithm,
                         RpcProtocolConstant.MSG_TYPE_REQUEST,
                         RpcProtocolConstant.STATUS_SUCCESS,
                         Long.parseLong(request.getRequestId()),
@@ -70,49 +130,71 @@ public class RpcClientProxy implements InvocationHandler {
                 request
         );
 
-        try (Socket socket = new Socket(host, port);
-             OutputStream outputStream = socket.getOutputStream();
-             InputStream inputStream = socket.getInputStream()) {
-            System.out.println("RpcClientProxy invoke 方法获取连接成功");
+        System.out.println("RpcClientProxy sending request: " + requestMessage);
 
-            // 使用编码器发送数据
-            byte[] encode = encoder.encode(requestMessage);
-            outputStream.write(encode);
-            outputStream.flush();
+        // 3. 调用rpcClient发送RpcMessage对象，并获得一个CompletableFuture对象
+        CompletableFuture<RpcMessage> responseFuture = rpcClient.sendRequest(requestMessage);
 
-            logger.info("客户端: 发送请求, {}...等待服务端返回结果...",  encode);
-            socket.shutdownOutput(); // 主动关闭输出流，告知服务端请求数据发送完毕 (对BIO读取很重要)
-
-            // 4. 读取服务端返回的响应
-            RpcMessage<RpcResponse> responseMessage = decoder.decode(inputStream);
-            if (responseMessage == null) {
-                throw new SerializationException(MessageConstant.RESPONSE_BYTE_EMPTY);
+        // 4. 等待异步响应结果
+        RpcMessage responseMessage = null;
+        try {
+            // future.get(timeout, unit) 会阻塞当前线程，直到Future完成或超时
+            responseMessage = responseFuture.get(requestTimeoutMillis, TimeUnit.MILLISECONDS);
+        } catch(InterruptedException e) {
+            Thread.currentThread().interrupt();
+            RpcClient.PENDING_RPC_FUTURES.remove(requestMessage.getHeader().getRequestID());
+            throw new RpcException("RPC request (ID: " + requestMessage.getHeader().getRequestID() +
+                    ") was interrupted while waiting for response.", e);
+        } catch(ExecutionException e) {
+            RpcClient.PENDING_RPC_FUTURES.remove(requestMessage.getHeader().getRequestID());
+            Throwable cause = e.getCause();
+            if (cause instanceof RpcException) {
+                // 如果原始异常就是RpcException，直接抛出
+                throw cause;
             }
-            if (responseMessage.getHeader().getMsgType() != RpcProtocolConstant.MSG_TYPE_RESPONSE) {
-                throw new SerializationException(MessageConstant.MSG_TYPE_WRONG);
-            }
-            if (responseMessage.getHeader().getRequestID() != Long.parseLong(request.getRequestId())) {
-                throw new SerializationException(MessageConstant.REQUEST_ID_NOT_MATCH);
-            }
-            if (responseMessage.getHeader().getStatus() == RpcProtocolConstant.STATUS_FAIL) {
-                throw new SerializationException(MessageConstant.STATUS_FAIL);
-            }
-
-            RpcResponse response = responseMessage.getBody();
-            if (response == null) {
-                throw new SerializationException(MessageConstant.RESPONSE_DESERIALIZE_EMPTY);
-            }
-            if (response.hasException()) {
-                throw response.getException();
-            }
-            return response.getResult();
-
-        } catch (Exception e) {
-            logger.error("客户端: 调用远程方法失败 " + method.getName(), e);
-            e.printStackTrace();
-            throw new RuntimeException(MessageConstant.CLIENT_REMOTE_METHOD_FAIL + "method: " + method.getName() +
-                    "host: " + host + "port: " + port, e);
+            // 其他异常，包装成RpcException抛出
+            throw new RpcException("RPC request (ID: " + requestMessage.getHeader().getRequestID() +
+                    ") execution failed.", cause);
+        } catch(TimeoutException e) {
+            RpcClient.PENDING_RPC_FUTURES.remove(requestMessage.getHeader().getRequestID());
+            throw new RpcException("RPC request (ID: " + requestMessage.getHeader().getRequestID() +
+                    ") timed out after " + this.requestTimeoutMillis + " ms.", e);
         }
 
+        // 5. 处理响应的对象
+        if (responseMessage == null) {
+            throw new RpcException("Received null RpcMessage from server for request ID: " + requestMessage.getHeader().getRequestID());
+        }
+
+        // 6. 检验获取对象的消息类型
+        if (responseMessage.getHeader().getMsgType() != RpcProtocolConstant.MSG_TYPE_RESPONSE) {
+            throw new RpcException("Received unexpected message type: " + responseMessage.getHeader().getMsgType() +
+                    " from server for request ID: " + requestMessage.getHeader().getRequestID() + ". Expected RESPONSE.");
+        }
+
+        // 7. 检验对象返回ID
+        if (responseMessage.getHeader().getRequestID() != requestMessage.getHeader().getRequestID()) {
+            throw new RpcException("Received unexpected response for request ID: " + responseMessage.getHeader().getRequestID() +
+                    ". Expected request ID: " + requestMessage.getHeader().getRequestID() + ".");
+        }
+
+        // 8. 从响应中提取响应体
+        RpcResponse response = (RpcResponse) responseMessage.getBody();
+        if (response == null) {
+            throw new RpcException("Received empty response for request ID: " + responseMessage.getHeader().getRequestID());
+        }
+        if (response.getException() != null) {
+            throw response.getException();
+        }
+
+        // 9.返回响应结果
+        return response.getResult();
+    }
+
+    public void shutdown() {
+        if (rpcClient != null){
+            System.out.println("RpcClientProxy shutting down underlying RpcClient...");
+            rpcClient.close();
+        }
     }
 }

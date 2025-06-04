@@ -35,6 +35,22 @@ public class RpcClient {
     private final Bootstrap bootstrap;  // Netty客户端的启动引导类
     private volatile Channel channel;   // 当前客户端与服务端建立的连接通道，volatile保证可见性
 
+    public String getHost() {
+        return host;
+    }
+
+    public int getPort() {
+        return port;
+    }
+
+    public Channel getChannel() {
+        return channel;
+    }
+
+    public void setChannel(Channel channel) {
+        this.channel = channel;
+    }
+
     // 用于存储<请求ID, CompletableFuture<RpcMessage>>的映射
     // 当收到响应时，RpcClientHandler会根据响应中的请求ID找到对应的Future并完成它。
     // 必须是static或者通过某种方式让RpcClientHandler能够访问到它。

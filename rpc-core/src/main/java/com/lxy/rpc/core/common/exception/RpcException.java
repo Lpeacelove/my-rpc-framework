@@ -6,4 +6,8 @@ package com.lxy.rpc.core.common.exception;
 public class RpcException extends RuntimeException{
     public RpcException(String message) {
     }
+
+    public RpcException(String message, Throwable cause) {
+        super(message, cause);
+    }
 }
