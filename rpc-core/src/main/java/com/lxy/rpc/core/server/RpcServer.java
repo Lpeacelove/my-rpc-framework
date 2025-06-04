@@ -33,9 +33,9 @@ public class RpcServer {
     // todo 线程池相关内容
 //    private final ExecutorService threadPools; // 使用线程池处理请求
 
-    public RpcServer(int port) {
+    public RpcServer(int port, LocalServiceRegistry serviceRegistry) {
         this.port = port;
-        this.serviceRegistry = new LocalServiceRegistry();
+        this.serviceRegistry = serviceRegistry;
         // 创建一个固定大小的线程池，可以根据需要调整
 //        this.threadPools = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors() * 2);
     }

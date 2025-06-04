@@ -30,7 +30,7 @@ public class RpcClientProxy implements InvocationHandler {
     // 记录日志
     private static final Logger logger = LoggerFactory.getLogger(RpcClientProxy.class);
 
-    private final byte serializerAlgorithm;
+    private final byte serializerAlgorithm = SerializerFactory.getDefaultSerializer().getSerializerAlgorithm();
     private final RpcClient rpcClient;
 
     // 用于生成请求ID，确保在单个客户端实例中唯一。
@@ -47,12 +47,13 @@ public class RpcClientProxy implements InvocationHandler {
      * 构造函数，使用默认序列化算法和默认超时时间
      */
     public RpcClientProxy(String host, int port) {
-        this(host, port, SerializerFactory.getDefaultSerializer().getSerializerAlgorithm(), 5000L);
+        this(host, port, 5000L);
     }
 
-    public RpcClientProxy(String host, int port, byte serializerAlgorithm, long requestTimeoutMillis) {
+    // 暂时不指定序列化算法使用默认
+    public RpcClientProxy(String host, int port, long requestTimeoutMillis) {
         this.rpcClient = new RpcClient(host, port);
-        this.serializerAlgorithm = serializerAlgorithm;
+//        this.serializerAlgorithm = serializerAlgorithm;
         this.requestTimeoutMillis = requestTimeoutMillis > 0 ? requestTimeoutMillis : 5000L;  // 保证超时 > 0
 
         // 在代理创建时，就尝试与服务端建立连接。
