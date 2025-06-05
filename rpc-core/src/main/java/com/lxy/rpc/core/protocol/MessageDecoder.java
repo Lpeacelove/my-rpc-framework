@@ -75,7 +75,8 @@ public class MessageDecoder {
 
         // 7. 封装消息头
         MessageHeader header = new MessageHeader(magicNumber, version, serializerAlgorithm,
-                msgType, status, requestID, bodyLength);
+                msgType, status, requestID);
+        header.setBodyLength(bodyLength);
         return new RpcMessage<T>(header, (T)data);
 
     }

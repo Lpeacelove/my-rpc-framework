@@ -30,6 +30,7 @@ public class RpcClientProxy implements InvocationHandler {
     // 记录日志
     private static final Logger logger = LoggerFactory.getLogger(RpcClientProxy.class);
 
+    // 默认使用默认序列化算法
     private final byte serializerAlgorithm = SerializerFactory.getDefaultSerializer().getSerializerAlgorithm();
     private final RpcClient rpcClient;
 
@@ -125,22 +126,24 @@ public class RpcClientProxy implements InvocationHandler {
                         this.serializerAlgorithm,
                         RpcProtocolConstant.MSG_TYPE_REQUEST,
                         RpcProtocolConstant.STATUS_SUCCESS,
-                        Long.parseLong(request.getRequestId()),
-                        0
+                        Long.parseLong(request.getRequestId())
                 ),
                 request
         );
 
-        System.out.println("RpcClientProxy sending request: " + requestMessage);
+        System.out.println("RpcClientProxy: 发送请求，消息为: " + requestMessage);
 
         // 3. 调用rpcClient发送RpcMessage对象，并获得一个CompletableFuture对象
         CompletableFuture<RpcMessage> responseFuture = rpcClient.sendRequest(requestMessage);
+        System.out.println("RpcClientProxy: 调用sendRequest方法后返回的responseFuture: " + responseFuture);
 
         // 4. 等待异步响应结果
         RpcMessage responseMessage = null;
         try {
             // future.get(timeout, unit) 会阻塞当前线程，直到Future完成或超时
+            System.out.println("RpcClientProxy: 阻塞当前线程，等待请求完成或超时");
             responseMessage = responseFuture.get(requestTimeoutMillis, TimeUnit.MILLISECONDS);
+            System.out.println("RpcClientProxy: 请求完成");
         } catch(InterruptedException e) {
             Thread.currentThread().interrupt();
             RpcClient.PENDING_RPC_FUTURES.remove(requestMessage.getHeader().getRequestID());

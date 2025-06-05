@@ -26,14 +26,13 @@ public class MessageHeader {
     public MessageHeader() {
     }
 
-    public MessageHeader(byte[] magicNumber, byte version, byte serializerAlgorithm, byte msgType, byte status, long requestID, int bodyLength) {
+    public MessageHeader(byte[] magicNumber, byte version, byte serializerAlgorithm, byte msgType, byte status, long requestID) {
         this.magicNumber = magicNumber;
         this.version = version;
         this.serializerAlgorithm = serializerAlgorithm;
         this.msgType = msgType;
         this.status = status;
         this.requestID = requestID;
-        this.bodyLength = bodyLength;
     }
 
     public byte[] getMagicNumber() {

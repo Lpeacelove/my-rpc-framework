@@ -7,6 +7,9 @@ import io.netty.channel.SimpleChannelInboundHandler;
 
 import java.util.concurrent.CompletableFuture;
 
+/**
+ * 负责处理服务端返回的响应消息
+ */
 public class RpcClientHandler extends SimpleChannelInboundHandler<RpcMessage> {
 
     /**
@@ -18,7 +21,7 @@ public class RpcClientHandler extends SimpleChannelInboundHandler<RpcMessage> {
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, RpcMessage responseMessage) throws Exception {
         long requestId = responseMessage.getHeader().getRequestID();
-        System.out.println("RpcClientHandler received message from server " + ctx.channel().remoteAddress() +
+        System.out.println("RpcClientHandler: received message from server " + ctx.channel().remoteAddress() +
                 ": [Type=" + responseMessage.getHeader().getMsgType() + ", ReqID=" + requestId + "]");
 
         // 根据消息类型进行处理

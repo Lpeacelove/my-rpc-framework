@@ -93,11 +93,14 @@ public class RpcClient {
                         pipeline.addLast("frameDecoder", new RpcFrameDecoder());
                         // 3.2 RpcMessageDecoder: 对RpcMessage进行解码，将字节流转为RpcMessage对象。
                         pipeline.addLast("messageDecoder", new RpcMessageDecoderNetty());
+                        // 3.3 RpcClientHandler: 客户端的业务逻辑处理器，处理解码后的RpcMessage响应。
+
                         // 4.  添加出站处理器
                         // 4.1 RpcMessageEncoder: 对RpcMessage进行编码，将RpcMessage转为字节流。
                         pipeline.addLast("messageEncoder", new RpcMessageEncoderNetty());
-                        // 4.2 RpcClientHandler: 客户端的业务逻辑处理器，处理解码后的RpcMessage响应。
                         pipeline.addLast("clientHandler", new RpcClientHandler());
+
+
                     }
                 });
     }
@@ -129,13 +132,14 @@ public class RpcClient {
                     // 首先获取所有的异步响应对象，然后判断是否已经完成，如果没有完成，则取消它们。
                     PENDING_RPC_FUTURES.forEach((id, pendingFuture) -> {
                         if (!pendingFuture.isDone()) {
+                            System.out.println("Cancelling pending future for request ID: " + id);
                             pendingFuture.completeExceptionally(new ProtocolException("Connection closed before response for request ID: " + id));
                         }
                     });
                     // 最后，清空PENDING_RPC_FUTURES，确保下次连接时，不会残留旧的异步响应对象。
                     PENDING_RPC_FUTURES.clear();
+                    this.channel = null; // 重置channel,  确保下次连接时，不会残留旧的channel。
                 });
-                this.channel = null; // 重置channel,  确保下次连接时，不会残留旧的channel。
             } else {
                 System.err.println("RpcClient failed to connect to " +
                         host + ":" + port + ". Cause: " + channelFuture.cause().getMessage());
@@ -172,7 +176,7 @@ public class RpcClient {
         CompletableFuture<RpcMessage> future = new CompletableFuture<>();
         PENDING_RPC_FUTURES.put(message.getHeader().getRequestID(), future);
 
-        System.out.println("RpcClient sending request ID: " +
+        System.out.println("RpcClient: sending request ID: " +
                 message.getHeader().getRequestID() + " to " + this.channel.remoteAddress());
 
         // 通过Channel异步地写入并冲刷RpcMessage对象
@@ -180,7 +184,7 @@ public class RpcClient {
         this.channel.writeAndFlush(message).addListener((ChannelFutureListener) channelFuture -> {
             if (!channelFuture.isSuccess()) {
                 // 发送失败
-                System.err.println("RpcClient failed to send request ID: " +
+                System.err.println("RpcClient: failed to send request ID: " +
                         message.getHeader().getRequestID() + " to " + this.channel.remoteAddress());
                 channelFuture.cause().printStackTrace();
                 // 移除该异步响应对象，并设置一个失败的CompletableFuture
@@ -188,7 +192,7 @@ public class RpcClient {
                 future.completeExceptionally(channelFuture.cause());
             } else {
                 // 发送成功
-                System.out.println("RpcClient sent request ID: " +
+                System.out.println("RpcClient: sent request ID: " +
                         message.getHeader().getRequestID() + " to " + this.channel.remoteAddress());
             }
         });

@@ -29,6 +29,7 @@ public class RpcMessageDecoderNetty extends ByteToMessageDecoder {
      */
     @Override
     protected void decode(ChannelHandlerContext ctx, ByteBuf in, List<Object> list) throws Exception {
+        System.out.println("RpcMessageDecoderNetty: netty解码器被调用，服务来自 " + ctx.channel().remoteAddress());
         // 1. 检查输入的字节数组长度是否小于消息头长度
         if (in.readableBytes() < RpcProtocolConstant.MESSAGE_HEADER_LENGTH) {
             return; // 直接返回，等待更多消息接收
@@ -94,8 +95,10 @@ public class RpcMessageDecoderNetty extends ByteToMessageDecoder {
         switch(messageType) {
             case RpcProtocolConstant.MSG_TYPE_REQUEST:
                 data = serializer.deserialize(bodyBytes, RpcRequest.class);
+                break;
             case RpcProtocolConstant.MSG_TYPE_RESPONSE:
                 data = serializer.deserialize(bodyBytes, RpcResponse.class);
+                break;
             case RpcProtocolConstant.MSG_TYPE_HEARTBEAT_REQUEST:
                 break;
             case RpcProtocolConstant.MSG_TYPE_HEARTBEAT_RESPONSE:
@@ -104,13 +107,12 @@ public class RpcMessageDecoderNetty extends ByteToMessageDecoder {
                 throw new ProtocolException(MessageConstant.UNSUPPORTED_MSG_TYPE);
         }
 
-        RpcMessage rpcMessage = new RpcMessage(
-                new MessageHeader(
-                        magicNumber, version, serializerAlgorithm,
-                        messageType,status,requestID,  bodyLength),
-                data
-        );
+        MessageHeader header = new MessageHeader(magicNumber, version, serializerAlgorithm,
+                messageType, status, requestID);
+        header.setBodyLength(bodyLength);
+        RpcMessage rpcMessage = new RpcMessage(header, data);
 
+        System.out.println("RpcMessageDecoderNetty: 解码并反序列化后的信息: " + rpcMessage);
         list.add(rpcMessage);
         // ByteToMessageDecoder 会在 decode 方法返回后，检查 out 列表。
         // 如果列表不为空，它会逐个将对象传递下去。

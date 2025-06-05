@@ -16,7 +16,7 @@ public class ConsumerApplication {
 
         // 1. 创建 RpcClientProxy 实例
         //    参数：服务端主机名/IP，服务端端口，请求超时时间（毫秒）
-        RpcClientProxy clientProxy = new RpcClientProxy("127.0.0.1", 8088, 10000L); // 10秒超时
+        RpcClientProxy clientProxy = new RpcClientProxy("127.0.0.1", 8088, 100000L); // 10秒超时
 
         // 2. 通过代理获取服务接口的实例
         HelloService helloService = clientProxy.getProxy(HelloService.class);
@@ -33,18 +33,18 @@ public class ConsumerApplication {
 //            System.out.println("RPC call result for sayHi: " + hiResult);
 
             // 示例：测试一个不存在的方法（如果你的代理或服务端有相应处理，会抛出异常）
-            // try {
-            //     System.out.println("\nAttempting to call a non-existent method (for testing error handling)...");
-            //     // 假设HelloService接口没有 "nonExistentMethod" 方法
-            //     // 这会在代理创建时没问题，但在调用时，服务端反射找不到方法，会返回异常
-            //     Object nonExistentResult = ((Object)helloService).getClass().getMethod("nonExistentMethod").invoke(helloService);
-            //     System.out.println("Result of non-existent method (should not happen): " + nonExistentResult);
-            // } catch (NoSuchMethodException nsme) {
-            //     System.err.println("Caught NoSuchMethodException as expected locally (this is a test setup issue): " + nsme.getMessage());
-            // } catch (RpcException e) {
-            //      System.err.println("Caught RpcException for non-existent method: " + e.getMessage());
-            //      // e.printStackTrace();
-            // }
+//             try {
+//                 System.out.println("\nAttempting to call a non-existent method (for testing error handling)...");
+//                 // 假设HelloService接口没有 "nonExistentMethod" 方法
+//                 // 这会在代理创建时没问题，但在调用时，服务端反射找不到方法，会返回异常
+//                 Object nonExistentResult = ((Object)helloService).getClass().getMethod("nonExistentMethod").invoke(helloService);
+//                 System.out.println("Result of non-existent method (should not happen): " + nonExistentResult);
+//             } catch (NoSuchMethodException nsme) {
+//                 System.err.println("Caught NoSuchMethodException as expected locally (this is a test setup issue): " + nsme.getMessage());
+//             } catch (RpcException e) {
+//                  System.err.println("Caught RpcException for non-existent method: " + e.getMessage());
+//                  // e.printStackTrace();
+//             }
 
 
             // 示例：如果你的HelloServiceImpl.sayHello方法中对特定输入会抛出自定义业务异常
@@ -53,7 +53,7 @@ public class ConsumerApplication {
             //    String exceptionResult = helloService.sayHello("throw_exception");
             //    System.out.println("RPC call result for exception case: " + exceptionResult); // 不应执行到这里
             // } catch (YourBusinessException e) { // 假设你有一个YourBusinessException
-            //    System.out.println("Successfully caught business exception from RPC call: " + e.getMessage());
+            //    Syste1        111m.out.println("Successfully caught business exception from RPC call: " + e.getMessage());
             // }
 
 

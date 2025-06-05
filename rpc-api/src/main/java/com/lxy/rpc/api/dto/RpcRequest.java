@@ -7,8 +7,6 @@ import java.util.Arrays;
  * 请求对象，V0.1暂时可能可以直接传递参数，但先定义好结构，后续再扩展
  */
 public class RpcRequest implements Serializable {
-    // todo  序列化ID的用处是什么
-    private static final long serialVersionUID = 1L; //  序列化ID
     private String requestId; // 请求ID，用于后续异步处理
     private String interfaceName;
     private String methodName;

@@ -30,6 +30,7 @@ public class RpcRequestHandler{
             throw new IllegalArgumentException("服务注册表不能为空");
         }
         this.serviceRegistry = serviceRegistry;
+        System.out.println("RpcRequestHandler: 创建成功");
     }
 
     public RpcResponse handle(RpcRequest request) {
@@ -41,7 +42,7 @@ public class RpcRequestHandler{
             return nullRequestResponse;
         }
 
-        logger.debug("Handling RpcRequest: [ReqID={}, Interface={}, Method={}]",
+        logger.debug("RpcRequestHandler : 处理业务逻辑[ReqID={}, Interface={}, Method={}]",
                 request.getRequestId(), request.getInterfaceName(), request.getMethodName());
 
         RpcResponse response = new RpcResponse();
