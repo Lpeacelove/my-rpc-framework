@@ -1,4 +1,4 @@
-package com.lxy.rpc.core.server.registry;
+package com.lxy.rpc.core.registry;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

@@ -1,4 +1,4 @@
-package com.lxy.rpc.core.server.registry;
+package com.lxy.rpc.core.registry;
 
 import java.net.InetSocketAddress;
 

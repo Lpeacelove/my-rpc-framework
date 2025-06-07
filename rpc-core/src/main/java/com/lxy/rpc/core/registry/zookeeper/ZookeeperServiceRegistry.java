@@ -1,7 +1,7 @@
-package com.lxy.rpc.core.server.registry.zookeeper;
+package com.lxy.rpc.core.registry.zookeeper;
 
 import com.lxy.rpc.core.common.exception.RegistryException;
-import com.lxy.rpc.core.server.registry.ServiceRegistry;
+import com.lxy.rpc.core.registry.ServiceRegistry;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
 import org.apache.curator.retry.ExponentialBackoffRetry;

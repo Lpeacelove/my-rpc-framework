@@ -1,14 +1,11 @@
 package com.lxy.rpc.core.server;
 
-import com.lxy.rpc.core.common.exception.RegistryException;
 import com.lxy.rpc.core.protocol.codec.RpcFrameDecoder;
 import com.lxy.rpc.core.protocol.codec.RpcMessageDecoderNetty;
 import com.lxy.rpc.core.protocol.codec.RpcMessageEncoderNetty;
-import com.lxy.rpc.core.server.registry.LocalServiceRegistry;
-import com.lxy.rpc.core.server.registry.ServiceDiscovery;
-import com.lxy.rpc.core.server.registry.ServiceRegistry;
-import com.lxy.rpc.core.server.registry.zookeeper.ZookeeperServiceDiscovery;
-import com.lxy.rpc.core.server.registry.zookeeper.ZookeeperServiceRegistry;
+import com.lxy.rpc.core.registry.LocalServiceRegistry;
+import com.lxy.rpc.core.registry.ServiceRegistry;
+import com.lxy.rpc.core.registry.zookeeper.ZookeeperServiceRegistry;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;

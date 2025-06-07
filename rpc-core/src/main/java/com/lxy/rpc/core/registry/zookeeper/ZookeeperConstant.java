@@ -1,4 +1,4 @@
-package com.lxy.rpc.core.server.registry.zookeeper;
+package com.lxy.rpc.core.registry.zookeeper;
 
 /**
  * zookeeper常量

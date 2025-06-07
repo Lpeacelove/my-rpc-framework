@@ -1,8 +1,8 @@
-package com.lxy.rpc.core.server.registry.zookeeper;
+package com.lxy.rpc.core.registry.zookeeper;
 
 import com.lxy.rpc.core.common.exception.RegistryException;
-import com.lxy.rpc.core.server.registry.ServiceDiscovery;
-import com.lxy.rpc.core.server.registry.ServiceInstancesChangeListener;
+import com.lxy.rpc.core.registry.ServiceDiscovery;
+import com.lxy.rpc.core.registry.ServiceInstancesChangeListener;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
 import org.apache.curator.framework.recipes.cache.CuratorCache;

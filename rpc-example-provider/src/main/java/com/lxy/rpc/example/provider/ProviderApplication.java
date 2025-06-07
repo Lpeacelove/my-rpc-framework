@@ -2,7 +2,7 @@ package com.lxy.rpc.example.provider;
 
 import com.lxy.rpc.api.HelloService;
 import com.lxy.rpc.core.server.RpcServer;
-import com.lxy.rpc.core.server.registry.LocalServiceRegistry;
+import com.lxy.rpc.core.registry.LocalServiceRegistry;
 
 /**
  * 启动类，用于启动RpcServer并注册服务
