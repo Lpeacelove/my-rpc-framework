@@ -16,11 +16,40 @@ public class ConsumerApplication {
 
         // 1. 创建 RpcClientProxy 实例
         //    参数：服务端主机名/IP，服务端端口，请求超时时间（毫秒）
-        RpcClientProxy clientProxy = new RpcClientProxy("127.0.0.1", 8088, 100000L); // 10秒超时
+        String zkAddress = "127.0.0.1:2181";
+        RpcClientProxy clientProxy = new RpcClientProxy(zkAddress, 100000L); // 10秒超时
 
         // 2. 通过代理获取服务接口的实例
         HelloService helloService = clientProxy.getProxy(HelloService.class);
         System.out.println("Obtained proxy for HelloService.");
+
+//        // 进行多次调用，观察负载均衡效果（如果启动多个Provider实例）
+//        for (int i = 0; i < 10; i++) {
+//            try {
+//                System.out.println("\nAttempting RPC call #" + (i + 1));
+//                String name = "User-" + i;
+//                String result = helloService.sayHello(name);
+//                System.out.println("RPC call #" + (i + 1) + " result for sayHello('" + name + "'): " + result);
+//
+//                Thread.sleep(500); // 短暂等待，方便观察日志
+//
+//            } catch (RpcException e) {
+//                System.err.println("An RpcException occurred during RPC call #" + (i + 1) + ": " + e.getMessage());
+//                if (e.getCause() != null) {
+//                    System.err.println("  Underlying cause: " + e.getCause().getMessage());
+//                }
+//                // e.printStackTrace(); // 调试时可以打开
+//            } catch (Throwable e) {
+//                System.err.println("An unexpected error occurred during RPC call #" + (i + 1) + ": " + e.getMessage());
+//                e.printStackTrace();
+//            }
+//        }
+//
+//        // 关闭 RpcClientProxy
+//        System.out.println("\nShutting down RpcClientProxy...");
+//        clientProxy.shutdown();
+//        System.out.println("--- Consumer Application Finished ---");
+
 
         // 3.像调用本地方法一样调用RPC方法
         try {

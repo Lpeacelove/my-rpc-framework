@@ -12,13 +12,14 @@ public class ProviderApplication {
     public static void main(String[] args) {
         System.out.println("--- Provider Application Starting (Netty based) ---");
 
-        // 1. 服务端创建本地注册表
+        // 1. 服务端创建本地注册表并给出zk地址
         LocalServiceRegistry  serviceRegistry = new LocalServiceRegistry();
         serviceRegistry.register(HelloService.class, new HelloServiceImpl());
+        String zkAddress = "127.0.0.1:2181";
 
         // 2. 创建并配置RpcServer
         int port = 8088; // 定义服务端口
-        RpcServer rpcServer = new RpcServer(port, serviceRegistry);
+        RpcServer rpcServer = new RpcServer(port, serviceRegistry, zkAddress);
 
         try {
             System.out.println("Starting RPC Server (Netty) on port 8088...");

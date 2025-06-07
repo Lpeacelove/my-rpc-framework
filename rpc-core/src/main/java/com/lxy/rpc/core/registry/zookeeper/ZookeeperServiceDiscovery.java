@@ -5,8 +5,10 @@ import com.lxy.rpc.core.registry.ServiceDiscovery;
 import com.lxy.rpc.core.registry.ServiceInstancesChangeListener;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
+import org.apache.curator.framework.recipes.cache.ChildData;
 import org.apache.curator.framework.recipes.cache.CuratorCache;
 import org.apache.curator.framework.recipes.cache.CuratorCacheListener;
+import org.apache.curator.framework.recipes.cache.PathChildrenCacheEvent;
 import org.apache.curator.retry.ExponentialBackoffRetry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -115,9 +117,11 @@ public class ZookeeperServiceDiscovery implements ServiceDiscovery {
             // 为该CuratorCache添加监听器
             newCache.listenable().addListener(CuratorCacheListener.builder()
                     .forPathChildrenCache(servicePath, zkClient, (client, event) -> {
+                        PathChildrenCacheEvent.Type eventType = event.getType();
+                        ChildData childData = event.getData();
                         // 暂时设置只要子节点有变化，就拉取服务节点列表，并更新到缓存中。
                         logger.info("ZookeeperServiceRegistry: 服务节点 {} 发生变化，重新拉取服务节点列表, event: {}, path: {}",
-                                serviceName, event.getType(), event.getData().getPath());
+                                serviceName, eventType, childData != null ? childData.getPath() : "N/A");
                         // 重新拉取服务节点列表，并更新缓存
                         List<InetSocketAddress> latestAddresses = discoverServiceAndRefreshCache(serviceName);
                         // 通知所有订阅者

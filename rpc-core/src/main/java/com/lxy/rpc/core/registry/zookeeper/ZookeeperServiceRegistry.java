@@ -59,7 +59,7 @@ public class ZookeeperServiceRegistry implements ServiceRegistry {
 
             // 构建服务实例路径
             // todo 这个意思是在这台主机的这个端口处，有一个服务实例可以使用嘛？是不是为了方便日后扩展更多的服务器实现更多的服务实例，进一步实现负载均衡？
-            String instanceServicePrefix = serviceRootPath + "/" + RpcFrameworkUtils.formatAddress(inetSocketAddress);
+            String instanceServicePrefix = serviceRootPath + "/" + RpcFrameworkUtils.formatAddress(inetSocketAddress) + "-";
 
             // 创建服务实例路径
             if (zkClient.checkExists().forPath(instanceServicePrefix) == null) {
