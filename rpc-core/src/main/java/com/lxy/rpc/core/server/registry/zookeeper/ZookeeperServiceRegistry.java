@@ -36,9 +36,9 @@ public class ZookeeperServiceRegistry implements ServiceRegistry {
                     ))
                     .build();
             this.zkClient.start();  // 启动客户端
-            logger.info("ZookeeperServiceRegistry: 成功连接到 zookeeper，地址为 {}", zkAddress);
+            logger.info("ZookeeperServiceRegistry: 成功连接到 zookeeper 服务注册，地址为 {}", zkAddress);
         } catch (Exception e) {
-            logger.error("ZookeeperServiceRegistry: 连接 zookeeper 失败", e);
+            logger.error("ZookeeperServiceRegistry: 连接 zookeeper 服务注册失败", e);
             throw new RegistryException("ZookeeperServiceRegistry: 为服务注册连接 zookeeper，创建 CuratorFramework 实例失败", e);
         }
     }
@@ -52,12 +52,13 @@ public class ZookeeperServiceRegistry implements ServiceRegistry {
             if (zkClient.checkExists().forPath(serviceRootPath) == null) {
                 zkClient.create()
                         .creatingParentsIfNeeded() // 创建父节点
-                        .withMode(CreateMode.PERSISTENT)
+                        .withMode(CreateMode.PERSISTENT) //父节点应为持久节点，确保服务名始终存在
                         .forPath(serviceRootPath);
                 logger.info("ZookeeperServiceRegistry: 成功创建服务根路径 {}", serviceRootPath);
             }
 
             // 构建服务实例路径
+            // todo 这个意思是在这台主机的这个端口处，有一个服务实例可以使用嘛？是不是为了方便日后扩展更多的服务器实现更多的服务实例，进一步实现负载均衡？
             String instanceServicePrefix = serviceRootPath + "/" + RpcFrameworkUtils.formatAddress(inetSocketAddress);
 
             // 创建服务实例路径

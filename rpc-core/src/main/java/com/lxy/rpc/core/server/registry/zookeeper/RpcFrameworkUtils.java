@@ -14,4 +14,14 @@ public class RpcFrameworkUtils {
     public static String formatAddress(InetSocketAddress inetSocketAddress) {
         return inetSocketAddress.getHostName() + ":" + inetSocketAddress.getPort();
     }
+
+    /**
+     * 解析地址
+     * @param address 地址ip:port
+     * @return 地址InetSocketAddress
+     */
+    public static InetSocketAddress parseAddress(String address) {
+        String[] addressArr = address.split(":");
+        return new InetSocketAddress(addressArr[0], Integer.parseInt(addressArr[1]));
+    }
 }

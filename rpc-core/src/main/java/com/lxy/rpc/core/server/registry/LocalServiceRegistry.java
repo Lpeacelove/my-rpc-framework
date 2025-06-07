@@ -4,6 +4,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -44,5 +45,21 @@ public class LocalServiceRegistry {
             throw new RuntimeException("服务 " + serviceName + " 不存在");
         }
         return serviceInstance;
+    }
+
+    /**
+     * 获取已注册的服务名称
+     * @return 服务名称
+     */
+    public Set<String> getRegisteredServiceNames() {
+        return serviceMap.keySet();
+    }
+
+    /**
+     * 判断是否为空
+     * @return 是否为空
+     */
+    public boolean isEmpty() {
+        return serviceMap.isEmpty();
     }
 }
