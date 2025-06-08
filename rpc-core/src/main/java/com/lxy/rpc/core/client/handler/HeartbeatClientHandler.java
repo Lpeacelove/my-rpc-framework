@@ -20,7 +20,6 @@ import java.util.concurrent.atomic.AtomicLong;
  * 1. 检测到写空闲时，向服务端发送PING
  * 2. 检测到读空闲时，关闭连接
  */
-@ChannelHandler.Sharable
 public class HeartbeatClientHandler extends ChannelInboundHandlerAdapter {
     // 日志
     private static final Logger logger = LoggerFactory.getLogger(HeartbeatClientHandler.class);

@@ -15,7 +15,6 @@ import org.slf4j.LoggerFactory;
  *    主要用来响应 IdleStateHandler 触发的读空闲事件
  *    也可以处理客户端发来的 PING 请求，并回复 PONG 响应
  */
-@ChannelHandler.Sharable  // Handler无状态，可以标记为共享
 public class HeartbeatServerHandler extends ChannelInboundHandlerAdapter {
     // 日志
     private static final Logger logger = LoggerFactory.getLogger(HeartbeatServerHandler.class);
