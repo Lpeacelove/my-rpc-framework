@@ -6,6 +6,7 @@ import com.lxy.rpc.core.protocol.codec.RpcMessageEncoderNetty;
 import com.lxy.rpc.core.registry.LocalServiceRegistry;
 import com.lxy.rpc.core.registry.ServiceRegistry;
 import com.lxy.rpc.core.registry.zookeeper.ZookeeperServiceRegistry;
+import com.lxy.rpc.core.server.handler.HeartbeatServerHandler;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
@@ -13,12 +14,14 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
+import io.netty.handler.timeout.IdleStateHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
+import java.util.concurrent.TimeUnit;
 
 /**
  * 启动服务，监听端口，接收请求
@@ -88,6 +91,12 @@ public class RpcServer {
                             pipeline.addLast("loggerHandler", new LoggingHandler(LogLevel.DEBUG)); // 日志处理器
                             pipeline.addLast("frameDecoder", new RpcFrameDecoder());  // 帧解码器
                             pipeline.addLast("messageDecoder", new RpcMessageDecoderNetty());  // 消息解码器
+
+                            // 心跳机制处理
+                            int readerIdlerTimeSeconds = 60;
+                            pipeline.addLast("idleStateHandler", new IdleStateHandler(readerIdlerTimeSeconds, 0, 60, TimeUnit.SECONDS));
+                            int maxReaderIdleCounts = 3;
+                            pipeline.addLast("heartbeatHandler", new HeartbeatServerHandler(maxReaderIdleCounts));
 
                             // 出站
                             pipeline.addLast("messageEncoder", new RpcMessageEncoderNetty());  // 消息编码器
