@@ -39,7 +39,7 @@ public class RpcClientHandler extends SimpleChannelInboundHandler<RpcMessage> {
                 System.out.println("RpcClientHandler received response for request ID: " + requestId +
                         " but the future is already removed from the cache");
             }
-        } else if (responseMessage.getHeader().getMsgType() == RpcProtocolConstant.MSG_TYPE_HEARTBEAT_RESPONSE) {
+        } else if (responseMessage.getHeader().getMsgType() == RpcProtocolConstant.MSG_TYPE_HEARTBEAT_PONG) {
             System.out.println("RpcClientHandler received heartbeat response from server " +
                     ctx.channel().remoteAddress());
         } else {

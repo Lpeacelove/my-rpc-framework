@@ -18,8 +18,8 @@ public class RpcProtocolConstant {
     // 消息类型定义，1字节
     public static final byte MSG_TYPE_REQUEST = 0x01;
     public static final byte MSG_TYPE_RESPONSE = 0x02;
-    public static final byte MSG_TYPE_HEARTBEAT_REQUEST = 0x03;
-    public static final byte MSG_TYPE_HEARTBEAT_RESPONSE = 0x04;
+    public static final byte MSG_TYPE_HEARTBEAT_PING = 0x03;
+    public static final byte MSG_TYPE_HEARTBEAT_PONG = 0x04;
 
     // 响应状态定义，1字节
     public static final byte STATUS_SUCCESS = 0x01;

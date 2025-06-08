@@ -65,9 +65,9 @@ public class MessageDecoder {
         Object data = switch (msgType) {
             case RpcProtocolConstant.MSG_TYPE_REQUEST -> serializer.deserialize(bodyBytes, RpcRequest.class);
             case RpcProtocolConstant.MSG_TYPE_RESPONSE -> serializer.deserialize(bodyBytes, RpcResponse.class);
-//            case RpcProtocolConstant.MSG_TYPE_HEARTBEAT_REQUEST:
+//            case RpcProtocolConstant.MSG_TYPE_HEARTBEAT_PING:
 //                break;
-//            case RpcProtocolConstant.MSG_TYPE_HEARTBEAT_RESPONSE:
+//            case RpcProtocolConstant.MSG_TYPE_HEARTBEAT_PONG:
 //                break;
             default -> throw new ProtocolException(MessageConstant.UNSUPPORTED_MSG_TYPE);
         };

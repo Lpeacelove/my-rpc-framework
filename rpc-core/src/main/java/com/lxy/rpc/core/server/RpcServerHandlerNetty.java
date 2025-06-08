@@ -76,7 +76,7 @@ public class RpcServerHandlerNetty extends SimpleChannelInboundHandler<RpcMessag
                 responseMessage = new RpcMessage(responseHeader, rpcResponse);
                 System.out.println("客户端: 接收到服务端返回的响应" + responseMessage);
             }
-        } else if (requestMessage.getHeader().getMsgType() == RpcProtocolConstant.MSG_TYPE_HEARTBEAT_REQUEST) {
+        } else if (requestMessage.getHeader().getMsgType() == RpcProtocolConstant.MSG_TYPE_HEARTBEAT_PING) {
             // 处理心跳请求，暂时设置返回消息体为null
             System.out.println("RpcServerHandlerNetty received heartbeat request from client " +
                     ctx.channel().remoteAddress());
@@ -84,7 +84,7 @@ public class RpcServerHandlerNetty extends SimpleChannelInboundHandler<RpcMessag
                     RpcProtocolConstant.MAGIC_NUMBER,
                     RpcProtocolConstant.VERSION,
                     SerializerFactory.getDefaultSerializer().getSerializerAlgorithm(),
-                    RpcProtocolConstant.MSG_TYPE_HEARTBEAT_RESPONSE,
+                    RpcProtocolConstant.MSG_TYPE_HEARTBEAT_PONG,
                     RpcProtocolConstant.STATUS_SUCCESS,
                     Long.parseLong(rpcRequest.getRequestId()));
             responseMessage = new RpcMessage(responseHeader, null);
