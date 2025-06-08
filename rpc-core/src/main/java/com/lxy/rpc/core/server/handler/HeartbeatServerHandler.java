@@ -37,9 +37,12 @@ public class HeartbeatServerHandler extends ChannelInboundHandlerAdapter {
      */
     @Override
     public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
-        if (evt instanceof IdleState) {
-            IdleStateEvent event = (IdleStateEvent) evt;
-            if (event.state() == IdleState.READER_IDLE) {
+        System.out.println("[HeartbeatServerHandler] userEventTriggered called. Channel: " + ctx.channel().remoteAddress() +
+                ", Event Object: " + evt +
+                ", Event Class: " + (evt != null ? evt.getClass().getName() : "null"));
+        if (evt instanceof IdleStateEvent idleStateEvent) {
+            IdleState idleState = idleStateEvent.state();
+            if (idleState == IdleState.READER_IDLE) {
                 readIdleCount++;
                 logger.debug("HeartbeatServerHandler: channel: {} 诱发读空闲: {}/{}",
                         ctx.channel().remoteAddress(), readIdleCount, maxReaderIdleCount);
@@ -54,15 +57,19 @@ public class HeartbeatServerHandler extends ChannelInboundHandlerAdapter {
                         }
                     });
                 }
-            } else if (event.state() == IdleState.WRITER_IDLE) {
+            } else if (idleState == IdleState.WRITER_IDLE) {
                 // 服务端通常不主动发送心跳给客户端，除非双向心跳设计
                 // 可以记录日志，但不处理
                 logger.debug("HeartbeatServerHandler: channel: {} 诱发写空闲", ctx.channel().remoteAddress());
-            } else if (event.state() == IdleState.ALL_IDLE) {
+            } else if (idleState == IdleState.ALL_IDLE) {
                 // 暂不处理，没有必要
                 logger.debug("HeartbeatServerHandler: channel: {} 诱发读写空闲", ctx.channel().remoteAddress());
             }
         } else {
+            System.out.println("[HeartbeatServerHandler] 检测到非IdleState事件: ");
+
+//            logger.debug("HeartbeatServerHandler: channel: {} 触发其他事件: {}",
+//                    ctx.channel().remoteAddress(), evt.getClass().getName());
             // 如果不是 IdleStateEvent，则调用下一个 Handler
             super.userEventTriggered(ctx, evt);
         }

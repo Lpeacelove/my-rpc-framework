@@ -56,6 +56,23 @@ public class ConsumerApplication {
             System.out.println("Attempting to call helloService.sayHello(\"Netty RPC User\")...");
             String result = helloService.sayHello("Netty RPC User");
             System.out.println("RPC call result for sayHello: " + result);
+        } catch (RpcException e) {
+            // 捕获RPC框架层面定义的异常（例如连接失败、超时、序列化错误、服务端处理RPC请求时的通用错误等）
+            System.err.println("An RpcException occurred during RPC call: " + e.getMessage());
+            if (e.getCause() != null) {
+                System.err.println("  Underlying cause: " + e.getCause().getMessage());
+            }
+            e.printStackTrace();
+        } catch (Throwable e) { // 捕获其他通过RPC传递过来的业务异常
+            // 例如，如果服务端方法声明了 throws SomeBusinessException，
+            // 并且该异常被正确序列化和反序列化，那么客户端这里可以捕获到它。
+            System.err.println("An unexpected error (possibly business exception) occurred during RPC call: " + e.getMessage());
+            e.printStackTrace();
+        }
+
+        try {
+            System.out.println("==================休眠进入写空闲===================");
+            Thread.sleep(Long.MAX_VALUE);
 
 //            System.out.println("\nAttempting to call helloService.sayHi(\"RPC Developer\")...");
 //            String hiResult = helloService.sayHi("RPC Developer");
@@ -98,7 +115,8 @@ public class ConsumerApplication {
             // 并且该异常被正确序列化和反序列化，那么客户端这里可以捕获到它。
             System.err.println("An unexpected error (possibly business exception) occurred during RPC call: " + e.getMessage());
             e.printStackTrace();
-        } finally {
+        }
+        finally {
             // 4. 在应用程序退出前，关闭 RpcClientProxy 以释放底层Netty资源
             System.out.println("Shutting down RpcClientProxy...");
             clientProxy.shutdown();

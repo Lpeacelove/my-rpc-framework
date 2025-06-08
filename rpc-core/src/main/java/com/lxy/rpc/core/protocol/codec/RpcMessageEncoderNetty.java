@@ -20,40 +20,52 @@ public class RpcMessageEncoderNetty extends MessageToByteEncoder<RpcMessage> {
      */
     @Override
     protected void encode(ChannelHandlerContext channelHandlerContext, RpcMessage rpcMessage, ByteBuf out) throws Exception {
-        System.out.println("RpcMessageEncoderNetty: 开始编码");
-        // 首先判断 是否为空
-        if (rpcMessage == null || rpcMessage.getHeader() == null || rpcMessage.getBody() == null) {
-            System.out.println("不能对空消息进行编码");
-            throw new ProtocolException(MessageConstant.NOT_ENCODE_EMPTY_MSG);
+        try {
+            System.out.println("RpcMessageEncoderNetty: 开始编码");
+            // 首先判断 是否为空
+            if (rpcMessage == null || rpcMessage.getHeader() == null) {
+                System.out.println("不能对空消息进行编码");
+                throw new ProtocolException(MessageConstant.NOT_ENCODE_EMPTY_MSG);
+            }
+
+            byte[] bodyBytes;
+            int bodyLength;
+            if (rpcMessage.getBody() != null) {
+                // 获取序列化算法得到序列化器
+                Serializer serializer = SerializerFactory.getSerializer(rpcMessage.getHeader().getSerializerAlgorithm());
+                // 对消息体进行序列化
+                bodyBytes = serializer.serialize(rpcMessage.getBody());
+                // 获取序列化后的长度
+                bodyLength = bodyBytes.length;
+                System.out.println("[CLIENT ENCODER] =====> Serialized payloadBytes.length (payloadLength): " + bodyLength + " <=====");
+            } else {
+                bodyBytes = new byte[0];
+                bodyLength = bodyBytes.length;
+                System.out.println("[CLIENT ENCODER] =====> Serialized payloadBytes.length (payloadLength): " + bodyLength + " <=====");
+            }
+
+            System.out.println("RpcMessageEncoderNetty: 将编码后的信息写入流，bodyLength: " + bodyLength);
+            // 将消息信息写入输出流
+            out.writeBytes(RpcProtocolConstant.MAGIC_NUMBER);
+            out.writeByte(RpcProtocolConstant.VERSION);
+            out.writeByte(rpcMessage.getHeader().getSerializerAlgorithm());
+            out.writeByte(rpcMessage.getHeader().getMsgType());
+            out.writeByte(rpcMessage.getHeader().getStatus());
+            out.writeLong(rpcMessage.getHeader().getRequestID());
+            System.out.println("[CLIENT ENCODER] =====> Preparing to write DATA_LENGTH: " + bodyLength + " at writerIndex: " + out.writerIndex() + " <=====");
+            out.writeInt(bodyLength);
+            System.out.println("[CLIENT ENCODER] After DATA_LENGTH - writerIndex: " + out.writerIndex());
+
+            if (bodyLength > 0) {
+                out.writeBytes(bodyBytes);
+            }
+            System.out.println("RpcMessageEncoderNetty: 编码信息写入流完毕");
+
+            // Netty 会负责将这个 ByteBuf (out) 发送到网络。
+            // 我们不需要手动调用 flush，除非有特殊需求。
+            // MessageToByteEncoder 基类会在适当的时候处理flush。
+        } catch (ProtocolException e) {
+            System.out.println("RpcMessageEncoderNetty: 编码异常" + e.getMessage());
         }
-
-        // 获取序列化算法得到序列化器
-        Serializer serializer = SerializerFactory.getSerializer(rpcMessage.getHeader().getSerializerAlgorithm());
-        // 对消息体进行序列化
-        byte[] bodyBytes = serializer.serialize(rpcMessage.getBody());
-        // 获取序列化后的长度
-        int bodyLength = bodyBytes.length;
-        System.out.println("[CLIENT ENCODER] =====> Serialized payloadBytes.length (payloadLength): " + bodyLength + " <=====");
-
-        System.out.println("RpcMessageEncoderNetty: 将编码后的信息写入流，bodyLength: " + bodyLength);
-        // 将消息信息写入输出流
-        out.writeBytes(RpcProtocolConstant.MAGIC_NUMBER);
-        out.writeByte(RpcProtocolConstant.VERSION);
-        out.writeByte(rpcMessage.getHeader().getSerializerAlgorithm());
-        out.writeByte(rpcMessage.getHeader().getMsgType());
-        out.writeByte(rpcMessage.getHeader().getStatus());
-        out.writeLong(rpcMessage.getHeader().getRequestID());
-        System.out.println("[CLIENT ENCODER] =====> Preparing to write DATA_LENGTH: " + bodyLength + " at writerIndex: " + out.writerIndex() + " <=====");
-        out.writeInt(bodyLength);
-        System.out.println("[CLIENT ENCODER] After DATA_LENGTH - writerIndex: " + out.writerIndex());
-
-        if (bodyLength > 0) {
-            out.writeBytes(bodyBytes);
-        }
-        System.out.println("RpcMessageEncoderNetty: 编码信息写入流完毕");
-
-        // Netty 会负责将这个 ByteBuf (out) 发送到网络。
-        // 我们不需要手动调用 flush，除非有特殊需求。
-        // MessageToByteEncoder 基类会在适当的时候处理flush。
     }
 }

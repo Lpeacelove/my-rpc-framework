@@ -36,6 +36,8 @@ public class RpcServerHandlerNetty extends SimpleChannelInboundHandler<RpcMessag
         RpcMessage responseMessage = null;
         // 读取客户端请求体的内容
         RpcRequest rpcRequest = (RpcRequest) requestMessage.getBody();
+        // 读取客户端请求头
+        MessageHeader requestHeader = requestMessage.getHeader();
         // 根据消息类型进行处理，得到响应消息
         // 如果是请求消息
         if (requestMessage.getHeader().getMsgType() == RpcProtocolConstant.MSG_TYPE_REQUEST) {
@@ -57,7 +59,7 @@ public class RpcServerHandlerNetty extends SimpleChannelInboundHandler<RpcMessag
                         SerializerFactory.getDefaultSerializer().getSerializerAlgorithm(),
                         RpcProtocolConstant.MSG_TYPE_RESPONSE,
                         RpcProtocolConstant.STATUS_FAIL,
-                        Long.parseLong(rpcRequest.getRequestId()));
+                        requestHeader.getRequestID());
                 // 创建响应消息
                 responseMessage = new RpcMessage(responseHeader, errorResponse);
             } else { // 如果是正常请求消息
@@ -72,7 +74,7 @@ public class RpcServerHandlerNetty extends SimpleChannelInboundHandler<RpcMessag
                         SerializerFactory.getDefaultSerializer().getSerializerAlgorithm(),
                         RpcProtocolConstant.MSG_TYPE_RESPONSE,
                         RpcProtocolConstant.STATUS_SUCCESS,
-                        Long.parseLong(rpcRequest.getRequestId()));
+                        requestHeader.getRequestID());
                 responseMessage = new RpcMessage(responseHeader, rpcResponse);
                 System.out.println("客户端: 接收到服务端返回的响应" + responseMessage);
             }
@@ -86,7 +88,7 @@ public class RpcServerHandlerNetty extends SimpleChannelInboundHandler<RpcMessag
                     SerializerFactory.getDefaultSerializer().getSerializerAlgorithm(),
                     RpcProtocolConstant.MSG_TYPE_HEARTBEAT_PONG,
                     RpcProtocolConstant.STATUS_SUCCESS,
-                    Long.parseLong(rpcRequest.getRequestId()));
+                    requestHeader.getRequestID());
             responseMessage = new RpcMessage(responseHeader, null);
         } else {
             // 未知消息类型
@@ -102,7 +104,7 @@ public class RpcServerHandlerNetty extends SimpleChannelInboundHandler<RpcMessag
                     SerializerFactory.getDefaultSerializer().getSerializerAlgorithm(),
                     RpcProtocolConstant.MSG_TYPE_RESPONSE,
                     RpcProtocolConstant.STATUS_FAIL,
-                    Long.parseLong(rpcRequest.getRequestId()));
+                    requestHeader.getRequestID());
             responseMessage = new RpcMessage(responseHeader, errorResponse);
         }
         // 发送响应消息

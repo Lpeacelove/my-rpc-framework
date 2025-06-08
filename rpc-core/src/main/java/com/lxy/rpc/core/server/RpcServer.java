@@ -87,19 +87,21 @@ public class RpcServer {
                             System.out.println("RpcServer: 正在连接...");
                             ChannelPipeline pipeline = socketChannel.pipeline();  // 获取当前的Channel的Pipeline
 
-                            // 入站
                             pipeline.addLast("loggerHandler", new LoggingHandler(LogLevel.DEBUG)); // 日志处理器
+
+                            // 出站
+                            pipeline.addLast("messageEncoder", new RpcMessageEncoderNetty());  // 消息编码器
+
+                            // 入站
                             pipeline.addLast("frameDecoder", new RpcFrameDecoder());  // 帧解码器
                             pipeline.addLast("messageDecoder", new RpcMessageDecoderNetty());  // 消息解码器
 
                             // 心跳机制处理
-                            int readerIdlerTimeSeconds = 60;
+                            int readerIdlerTimeSeconds = 20;
                             pipeline.addLast("idleStateHandler", new IdleStateHandler(readerIdlerTimeSeconds, 0, 60, TimeUnit.SECONDS));
                             int maxReaderIdleCounts = 3;
                             pipeline.addLast("heartbeatHandler", new HeartbeatServerHandler(maxReaderIdleCounts));
 
-                            // 出站
-                            pipeline.addLast("messageEncoder", new RpcMessageEncoderNetty());  // 消息编码器
                             pipeline.addLast("serverHandler", new RpcServerHandlerNetty(requestHandler));  // 服务端处理器
 
 

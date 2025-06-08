@@ -1,5 +1,6 @@
 package com.lxy.rpc.core.client;
 
+import com.lxy.rpc.core.client.handler.HeartbeatClientHandler;
 import com.lxy.rpc.core.common.exception.ProtocolException;
 import com.lxy.rpc.core.common.exception.RpcException;
 import com.lxy.rpc.core.protocol.RpcMessage;
@@ -14,10 +15,12 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
+import io.netty.handler.timeout.IdleStateHandler;
 
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 
 /**
  * 负责建立连接、管理连接、发送请求
@@ -88,6 +91,11 @@ public class RpcClient {
                         ChannelPipeline pipeline = socketChannel.pipeline();
                         // 2. 加入自带的日志处理器
                         pipeline.addLast("loggerHandler", new LoggingHandler(LogLevel.DEBUG));
+
+                        // 4.  添加出站处理器
+                        // 4.1 RpcMessageEncoder: 对RpcMessage进行编码，将RpcMessage转为字节流。
+                        pipeline.addLast("messageEncoder", new RpcMessageEncoderNetty());
+
                         // 3. 加入入站处理器
                         // 3.1 RpcFrameDecoder: 首先对接收到的字节流进行帧分割，解决粘包/半包问题。
                         pipeline.addLast("frameDecoder", new RpcFrameDecoder());
@@ -95,9 +103,14 @@ public class RpcClient {
                         pipeline.addLast("messageDecoder", new RpcMessageDecoderNetty());
                         // 3.3 RpcClientHandler: 客户端的业务逻辑处理器，处理解码后的RpcMessage响应。
 
-                        // 4.  添加出站处理器
-                        // 4.1 RpcMessageEncoder: 对RpcMessage进行编码，将RpcMessage转为字节流。
-                        pipeline.addLast("messageEncoder", new RpcMessageEncoderNetty());
+                        // 心跳处理器
+                        int readerIdlerTimeSeconds = 30;
+                        int writerIdlerTimeSeconds = 10;
+                        pipeline.addLast("idleStateHandler", new IdleStateHandler(readerIdlerTimeSeconds, writerIdlerTimeSeconds, 60, TimeUnit.SECONDS));
+                        int maxReaderIdleCounts = 3;
+                        pipeline.addLast("heartbeatHandler", new HeartbeatClientHandler(writerIdlerTimeSeconds, maxReaderIdleCounts));
+
+
                         pipeline.addLast("clientHandler", new RpcClientHandler());
 
 
