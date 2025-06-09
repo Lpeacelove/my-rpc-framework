@@ -34,7 +34,7 @@ public class ProviderApplication {
 
         try {
             System.out.println("[ProviderApplication]: 正在开始RPC Server 在端口 8088...");
-            // 3. 启动Netty服务器 (这是一个阻塞操作，直到服务器关闭)
+            // 4. 启动Netty服务器 (这是一个阻塞操作，直到服务器关闭)
             rpcServer.start();
         } catch (Exception e) {
             if (e instanceof InterruptedException) {

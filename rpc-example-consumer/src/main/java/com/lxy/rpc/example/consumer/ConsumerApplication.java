@@ -12,117 +12,92 @@ import org.slf4j.LoggerFactory;
 public class ConsumerApplication {
     private static final Logger  logger = LoggerFactory.getLogger(ConsumerApplication.class);
     public static void main(String[] args) {
-        System.out.println("--- Consumer Application Starting (Netty based) ---");
+        System.out.println("====Consumer Application Starting (Netty based)====");
 
         // 1. 创建 RpcClientProxy 实例
         //    参数：服务端主机名/IP，服务端端口，请求超时时间（毫秒）
-        String zkAddress = "127.0.0.1:2181";
-        RpcClientProxy clientProxy = new RpcClientProxy(zkAddress, 100000L); // 10秒超时
+        String zkAddress = "127.0.0.1:2181";  //  zk地址
+        RpcClientProxy clientProxy = new RpcClientProxy(zkAddress, 100000L); // 创建RpcClientProxy
 
         // 2. 通过代理获取服务接口的实例
         HelloService helloService = clientProxy.getProxy(HelloService.class);
-        System.out.println("Obtained proxy for HelloService.");
+        System.out.println("[ConsumerApplication]: 获得 HelloService 的客户端代理");
 
-//        // 进行多次调用，观察负载均衡效果（如果启动多个Provider实例）
+        // 3. 注册JVM shutdown hook
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            logger.info("====[ConsumerApplication]: 正在通过hook关闭服务====");
+            clientProxy.shutdown();
+            logger.info("[ConsumerApplication]: 通过hook成功关闭服务");
+        }, "RpcClientProxyShutdownHook"));
+
+        // 4.1 正常调用方法进行测试
+        try {
+            logger.info("[ConsumerApplication]: 正在调用 helloService.sayHello...");
+            String result = helloService.sayHello(" 你好 泵就 奥拉 阿尼亚赛哟...");
+            logger.info("[ConsumerApplication]: helloService.sayHello 调用结果为: {}", result);
+
+            logger.info("====[ConsumerApplication]: 测试心跳机制以及ctrl+c优雅停机====");
+            Thread.sleep(Long.MAX_VALUE);
+        } catch (RpcException e) {
+            // 捕获RPC框架层面定义的异常（例如连接失败、超时、序列化错误、服务端处理RPC请求时的通用错误等）
+            System.err.println("An RpcException occurred during RPC call: " + e.getMessage());
+            if (e.getCause() != null) {
+                System.err.println("  Underlying cause: " + e.getCause().getMessage());
+            }
+            e.printStackTrace();
+        } catch (Throwable e) { // 捕获其他通过RPC传递过来的业务异常
+            // 例如，如果服务端方法声明了 throws SomeBusinessException，
+            // 并且该异常被正确序列化和反序列化，那么客户端这里可以捕获到它。
+            System.err.println("An unexpected error (possibly business exception) occurred during RPC call: " + e.getMessage());
+            e.printStackTrace();
+        } finally {
+            logger.info("[ConsumerApplication]: 方法执行结束");
+            // clientProxy.shutdown(); // 已经设置了hook，会自动关闭，这里可以不用调用，但也可以再次调用，但shutdown方法要设计为幂等，意思是多次调用无害或有内部状态判断的
+        }
+
+//        // 4.2 示例：测试一个不存在的方法（如果你的代理或服务端有相应处理，会抛出异常）
+//        try {
+//            logger.info("====[ConsumerApplication]: 测试调用一个不存在的方法(为了测试异常处理)====");
+//             // 假设HelloService接口没有 "nonExistentMethod" 方法
+//             // 这会在代理创建时没问题，但在调用时，服务端反射找不到方法，会返回异常
+//             Object nonExistentResult = ((Object)helloService).getClass().getMethod("nonExistentMethod").invoke(helloService);
+//             System.out.println("Result of non-existent method (should not happen): " + nonExistentResult);
+//        } catch (RpcException e) {
+//            // 捕获RPC框架层面定义的异常（例如连接失败、超时、序列化错误、服务端处理RPC请求时的通用错误等）
+//            System.err.println("An RpcException occurred during RPC call: " + e.getMessage());
+//            if (e.getCause() != null) {
+//                System.err.println("Underlying cause: " + e.getCause().getMessage());
+//            }
+//            e.printStackTrace();
+//        } catch (Throwable e) { // 捕获其他通过RPC传递过来的业务异常
+//            // 例如，如果服务端方法声明了 throws SomeBusinessException，
+//            // 并且该异常被正确序列化和反序列化，那么客户端这里可以捕获到它。
+//            System.err.println("An unexpected error (possibly business exception) occurred during RPC call: " + e.getMessage());
+//            e.printStackTrace();
+//        } finally {
+//            logger.info("[ConsumerApplication]: 方法执行结束");
+//        }
+
+
+
+//        // 4.3 进行多次调用，观察负载均衡效果（如果启动多个Provider实例）
 //        for (int i = 0; i < 10; i++) {
 //            try {
-//                System.out.println("\nAttempting RPC call #" + (i + 1));
-//                String name = "User-" + i;
+//                logger.info("[ConsumerApplication]: 尝试调用 RPC #{}",  i + 1);
+//                String name = "吉米-" + i;
 //                String result = helloService.sayHello(name);
-//                System.out.println("RPC call #" + (i + 1) + " result for sayHello('" + name + "'): " + result);
-//
+//                logger.info("[ConsumerApplication]: RPC 调用 #{} 结果 for sayHello('{}'): {}", i + 1, name, result);
 //                Thread.sleep(500); // 短暂等待，方便观察日志
-//
 //            } catch (RpcException e) {
-//                System.err.println("An RpcException occurred during RPC call #" + (i + 1) + ": " + e.getMessage());
+//                logger.error("[ConsumerApplication]: An RpcException occurred during RPC call #{}:{}",  i + 1, ": " + e.getMessage());
 //                if (e.getCause() != null) {
-//                    System.err.println("  Underlying cause: " + e.getCause().getMessage());
+//                    logger.error("[ConsumerApplication]: Underlying cause: {}", e.getCause().getMessage());
 //                }
-//                // e.printStackTrace(); // 调试时可以打开
 //            } catch (Throwable e) {
-//                System.err.println("An unexpected error occurred during RPC call #" + (i + 1) + ": " + e.getMessage());
-//                e.printStackTrace();
+//                logger.error("[ConsumerApplication]: An unexpected error occurred during RPC call #{}: {}", i + 1, e.getMessage());
 //            }
 //        }
-//
-//        // 关闭 RpcClientProxy
-//        System.out.println("\nShutting down RpcClientProxy...");
-//        clientProxy.shutdown();
-//        System.out.println("--- Consumer Application Finished ---");
-
-
-        // 3.像调用本地方法一样调用RPC方法
-        try {
-            System.out.println("Attempting to call helloService.sayHello(\"Netty RPC User\")...");
-            String result = helloService.sayHello("Netty RPC User");
-            System.out.println("RPC call result for sayHello: " + result);
-        } catch (RpcException e) {
-            // 捕获RPC框架层面定义的异常（例如连接失败、超时、序列化错误、服务端处理RPC请求时的通用错误等）
-            System.err.println("An RpcException occurred during RPC call: " + e.getMessage());
-            if (e.getCause() != null) {
-                System.err.println("  Underlying cause: " + e.getCause().getMessage());
-            }
-            e.printStackTrace();
-        } catch (Throwable e) { // 捕获其他通过RPC传递过来的业务异常
-            // 例如，如果服务端方法声明了 throws SomeBusinessException，
-            // 并且该异常被正确序列化和反序列化，那么客户端这里可以捕获到它。
-            System.err.println("An unexpected error (possibly business exception) occurred during RPC call: " + e.getMessage());
-            e.printStackTrace();
-        }
-
-        try {
-            System.out.println("==================休眠进入写空闲===================");
-            Thread.sleep(Long.MAX_VALUE);
-
-//            System.out.println("\nAttempting to call helloService.sayHi(\"RPC Developer\")...");
-//            String hiResult = helloService.sayHi("RPC Developer");
-//            System.out.println("RPC call result for sayHi: " + hiResult);
-
-            // 示例：测试一个不存在的方法（如果你的代理或服务端有相应处理，会抛出异常）
-//             try {
-//                 System.out.println("\nAttempting to call a non-existent method (for testing error handling)...");
-//                 // 假设HelloService接口没有 "nonExistentMethod" 方法
-//                 // 这会在代理创建时没问题，但在调用时，服务端反射找不到方法，会返回异常
-//                 Object nonExistentResult = ((Object)helloService).getClass().getMethod("nonExistentMethod").invoke(helloService);
-//                 System.out.println("Result of non-existent method (should not happen): " + nonExistentResult);
-//             } catch (NoSuchMethodException nsme) {
-//                 System.err.println("Caught NoSuchMethodException as expected locally (this is a test setup issue): " + nsme.getMessage());
-//             } catch (RpcException e) {
-//                  System.err.println("Caught RpcException for non-existent method: " + e.getMessage());
-//                  // e.printStackTrace();
-//             }
-
-
-            // 示例：如果你的HelloServiceImpl.sayHello方法中对特定输入会抛出自定义业务异常
-            // System.out.println("\nAttempting to call helloService.sayHello(\"throw_exception\")...");
-            // try {
-            //    String exceptionResult = helloService.sayHello("throw_exception");
-            //    System.out.println("RPC call result for exception case: " + exceptionResult); // 不应执行到这里
-            // } catch (YourBusinessException e) { // 假设你有一个YourBusinessException
-            //    Syste1        111m.out.println("Successfully caught business exception from RPC call: " + e.getMessage());
-            // }
-
-
-        } catch (RpcException e) {
-            // 捕获RPC框架层面定义的异常（例如连接失败、超时、序列化错误、服务端处理RPC请求时的通用错误等）
-            System.err.println("An RpcException occurred during RPC call: " + e.getMessage());
-            if (e.getCause() != null) {
-                System.err.println("  Underlying cause: " + e.getCause().getMessage());
-            }
-            e.printStackTrace();
-        } catch (Throwable e) { // 捕获其他通过RPC传递过来的业务异常
-            // 例如，如果服务端方法声明了 throws SomeBusinessException，
-            // 并且该异常被正确序列化和反序列化，那么客户端这里可以捕获到它。
-            System.err.println("An unexpected error (possibly business exception) occurred during RPC call: " + e.getMessage());
-            e.printStackTrace();
-        }
-        finally {
-            // 4. 在应用程序退出前，关闭 RpcClientProxy 以释放底层Netty资源
-            System.out.println("Shutting down RpcClientProxy...");
-            clientProxy.shutdown();
-            System.out.println("--- Consumer Application Finished ---");
-        }
-
+//        logger.info("[ConsumerApplication]: 方法执行结束");
     }
 
 }

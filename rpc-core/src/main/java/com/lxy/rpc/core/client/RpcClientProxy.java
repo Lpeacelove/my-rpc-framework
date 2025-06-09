@@ -312,6 +312,7 @@ public class RpcClientProxy implements InvocationHandler {
      * 关闭所有缓存的 RpcClient 和 ServiceDiscovery。
      */
     public void shutdown() {
+        logger.info("RpcClientProxy: 开始停止客户端...");
         if (this.serviceDiscovery != null) {
             this.serviceDiscovery.close();
             logger.info("RpcClientProxy: 关闭serviceDiscovery");
