@@ -35,6 +35,7 @@ public class RpcServer {
     private EventLoopGroup bossGroup;  // 负责接收客户端的连接请求
     private EventLoopGroup workerGroup;  // 负责处理已经连接的客户端的请求
     private String serverAddress; // 服务器自身地址
+    private Channel serverChannel; // 用于保存服务端启动的Channel，便于后面的关闭
 
     public RpcServer(int port, LocalServiceRegistry localServiceRegistry, String zkAddress) {
         this.port = port;
@@ -111,6 +112,7 @@ public class RpcServer {
             System.out.println("RpcServer: RpcServer开始监听端口： " + port);
             // 绑定端口，开始接收进来的连接
             ChannelFuture channelFuture = serverBootstrap.bind(port);
+            this.serverChannel = channelFuture.channel();
             // 使用sync()等待绑定操作完成 (阻塞当前线程直到绑定成功或失败)
             channelFuture.sync();
             System.out.println("RpcServer: RpcServer绑定端口成功");
@@ -121,34 +123,105 @@ public class RpcServer {
             // 通常，服务器会一直运行，直到应用程序退出或显式关闭。
             // 调用 channelFuture.channel().closeFuture().sync() 会使当前线程阻塞在这里，
             // 直到服务器的Channel被关闭。
-            channelFuture.channel().closeFuture().sync();
+            this.serverChannel.closeFuture().sync();
         } catch (Exception e) {
             logger.error("服务端: 启动失败", e);
             throw new RuntimeException("服务端: 启动失败");
         } finally {
+            // 这个finally块，会在this.serverChannel.closeFuture().sync()解除阻塞之后执行
             // 在关闭服务器之前，注销服务（虽然会自动注销，但也可以手动注销）
+            logger.info("RpcServer: start() 方法中的 finally 块正在被执行...注销服务");
+            //
             unregisterServiceFromRegistry();
+            shutdownNettyEventLoops();
+            if (serviceRegistry != null) {
+                serviceRegistry.close();
+            }
             // 当服务器最终关闭时（例如，通过外部信号或在main方法结束时），
             // 或者在启动过程中发生异常，需要优雅地关闭Netty的线程组。
-            System.out.println("RPC Server (Netty) is shutting down...");
-            shutdown();
+            logger.info("RpcServer: start() 方法中的 finally 块中优雅地关闭Netty线程组执行完毕");
+        }
+    }
+
+    /**
+     * 优雅地关闭Netty线程组
+     */
+    private void shutdownNettyEventLoops() {
+        logger.info("RpcServer: 正在关闭Netty线程组");
+        boolean bossGroupShutdown = false;
+        boolean workerGroupShutdown = false;
+
+        // 关闭bossGroup
+        if (bossGroup != null && !bossGroup.isShutdown()) {
+            try {
+                bossGroup.shutdownGracefully(0, 5, TimeUnit.SECONDS).syncUninterruptibly(); // 给bossGroup一个优雅的关闭时间，超过这个时间后，会强制关闭
+                bossGroupShutdown = true;
+                logger.info("RpcServer: BossGroup已成功关闭");
+            } catch (Exception e) {
+                logger.error("RpcServer: BossGroup关闭失败", e);
+            }
+        } else {
+            bossGroupShutdown = true;
+            logger.info("RpcServer: BossGroup已处于关闭状态");
+        }
+
+        // 关闭workerGroup
+        if (workerGroup != null && !workerGroup.isShutdown()) {
+            try {
+                workerGroup.shutdownGracefully(0, 15, TimeUnit.SECONDS).syncUninterruptibly(); // 给workerGroup一个更长的优雅的关闭时间，超过这个时间后，会强制关闭
+                workerGroupShutdown = true;
+                logger.info("RpcServer: WorkerGroup已成功关闭");
+            } catch (Exception e) {
+                logger.error("RpcServer: WorkerGroup关闭失败", e);
+            }
+        } else {
+            workerGroupShutdown = true;
+            logger.info("RpcServer: WorkerGroup已处于关闭状态");
+        }
+
+        if (bossGroupShutdown && workerGroupShutdown) {
+            logger.info("RpcServer: Netty线程组已全部关闭");
+        } else {
+            logger.warn("RpcServer: 存在未关闭的Netty线程组");
         }
     }
 
 
+    /**
+     * 停止服务
+     */
+    public void shutdown() {
+        logger.info("RpcServer: 开始执行shutdown()方法以停止服务...");
+        // 1. 从服务中心注销服务
+        unregisterServiceFromRegistry();
 
-    private void shutdown() {
-        System.out.println("RpcServer: 服务正在优雅地关闭...");
-        // 优雅地关闭线程组
-        if (bossGroup != null && !bossGroup.isShutdown()) {
-            bossGroup.shutdownGracefully().syncUninterruptibly();
-            System.out.println("RPC Server BossGroup shut down.");
+        // 2. 关闭Netty服务器
+        // 2.1 关闭服务器的channel监听，停止接收新的连接
+        if (serverChannel != null && serverChannel.isOpen()) {
+            logger.info("RpcServer: 服务器的channel监听正在关闭...");
+            try {
+                serverChannel.close().syncUninterruptibly();
+                logger.info("RpcServer: 服务器的channel监听已关闭");
+            } catch (Exception e) {
+                logger.error("RpcServer: 服务器的channel监听关闭失败", e);
+            }
         }
-        if (workerGroup != null && !workerGroup.isShutdown()) {
-            workerGroup.shutdownGracefully().syncUninterruptibly();
-            System.out.println("RPC Server WorkerGroup shut down.");
+
+        // 2.2 优雅地关闭netty线程组
+        shutdownNettyEventLoops();
+
+        // 3. 关闭与服务中心地连接
+        if (serviceRegistry != null) {
+            logger.info("RpcServer: 正在关闭与注册中心的连接...");
+            try {
+                serviceRegistry.close();
+                logger.info("RpcServer: 与注册中心的连接已关闭");
+            } catch (Exception e) {
+                logger.error("RpcServer: 与注册中心的连接关闭失败", e);
+            }
         }
-        System.out.println("RPC Server (Netty) shut down.");
+
+        logger.info("RpcServer: shutdown()方法执行完毕");
     }
 
 
