@@ -3,7 +3,9 @@ package com.lxy.rpc.core.protocol.codec;
 import com.lxy.rpc.api.dto.RpcRequest;
 import com.lxy.rpc.api.dto.RpcResponse;
 import com.lxy.rpc.core.common.constant.MessageConstant;
+import com.lxy.rpc.core.common.constant.RpcErrorMessages;
 import com.lxy.rpc.core.common.exception.ProtocolException;
+import com.lxy.rpc.core.common.exception.RpcCodecException;
 import com.lxy.rpc.core.protocol.MessageHeader;
 import com.lxy.rpc.core.protocol.RpcMessage;
 import com.lxy.rpc.core.protocol.RpcProtocolConstant;
@@ -12,6 +14,8 @@ import com.lxy.rpc.core.serialization.SerializerFactory;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.ByteToMessageDecoder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
 import java.util.List;
@@ -20,6 +24,8 @@ import java.util.List;
  * 对已经经过帧解码器拆分出完整帧信息的字节数组解码成RpcMessage对象
  */
 public class RpcMessageDecoderNetty extends ByteToMessageDecoder {
+    // 日志
+    private static final Logger logger = LoggerFactory.getLogger(RpcMessageDecoderNetty.class);
     /**
      * Netty会调用这个方法来尝试从输入的 ByteBuf (in) 中解码出一个或多个 RpcMessage 对象。
      * @param ctx 获取channel的上下文
@@ -29,7 +35,6 @@ public class RpcMessageDecoderNetty extends ByteToMessageDecoder {
      */
     @Override
     protected void decode(ChannelHandlerContext ctx, ByteBuf in, List<Object> list) throws Exception {
-        System.out.println("RpcMessageDecoderNetty: netty解码器被调用，服务来自 " + ctx.channel().remoteAddress());
         // 1. 检查输入的字节数组长度是否小于消息头长度
         if (in.readableBytes() < RpcProtocolConstant.MESSAGE_HEADER_LENGTH) {
             return; // 直接返回，等待更多消息接收
@@ -45,20 +50,22 @@ public class RpcMessageDecoderNetty extends ByteToMessageDecoder {
         if (!Arrays.equals(magicNumber, RpcProtocolConstant.MAGIC_NUMBER)) {
             // 回滚到标记的位置
             in.resetReaderIndex();
-            System.err.println("RpcMessageDecoderNetty: Invalid magic number from " +
-                    ctx.channel().remoteAddress() + ". Closing connection.");
+            logger.error("[RpcMessageDecoderNetty] Invalid magic number from {}. Closing connection.",
+                    ctx.channel().remoteAddress());
             // 关闭连接，防止进一步处理错误数据
             ctx.channel().close();
-            throw new ProtocolException(MessageConstant.INVALID_MAGIC);
+            throw new RpcCodecException("[RpcMessageDecoderNetty] " +
+                    RpcErrorMessages.format(RpcErrorMessages.INVALID_MAGIC_NUMBER, ctx.channel().remoteAddress()));
         }
 
         // 4. 读取并校验版本号
         byte version = in.readByte();
         if (version != RpcProtocolConstant.VERSION) {
-            System.err.println("RpcMessageDecoderNetty: Invalid version from " +
-                    ctx.channel().remoteAddress() + ". Closing connection.");
+            logger.error("[RpcMessageDecoderNetty] Invalid version from {}. Closing connection.",
+                    ctx.channel().remoteAddress());
             ctx.channel().close();
-            throw new ProtocolException(MessageConstant.INVALID_MAGIC);
+            throw new RpcCodecException("[RpcMessageDecoderNetty] " +
+                    RpcErrorMessages.format(RpcErrorMessages.UNMATCHED_VERSION, ctx.channel().remoteAddress()));
         }
 
         // 5. 读取序列化算法ID
@@ -73,10 +80,11 @@ public class RpcMessageDecoderNetty extends ByteToMessageDecoder {
 
         // 9. 对消息体长度进行校验
         if (bodyLength < 0){
-            System.err.println("RpcMessageDecoderNetty: Invalid payload length "
-                    + bodyLength + " from " + ctx.channel().remoteAddress() + ". Closing connection.");
+            logger.error("[RpcMessageDecoderNetty] Invalid payload length {} from {}. Closing connection.",
+                    bodyLength, ctx.channel().remoteAddress());
             ctx.channel().close();
-            throw new ProtocolException(MessageConstant.BODY_LENGTH_ZERO);
+            throw new RpcCodecException("[RpcMessageDecoderNetty] " +
+                    RpcErrorMessages.format(RpcErrorMessages.ILLEGAL_DATA_LENGTH, ctx.channel().remoteAddress()));
         }
 
         // 10. 检查 ByteBuf 中剩余的可读字节是否足够包含完整的数据体
@@ -112,7 +120,6 @@ public class RpcMessageDecoderNetty extends ByteToMessageDecoder {
         header.setBodyLength(bodyLength);
         RpcMessage rpcMessage = new RpcMessage(header, data);
 
-        System.out.println("RpcMessageDecoderNetty: 解码并反序列化后的信息: " + rpcMessage);
         list.add(rpcMessage);
         // ByteToMessageDecoder 会在 decode 方法返回后，检查 out 列表。
         // 如果列表不为空，它会逐个将对象传递下去。

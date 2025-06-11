@@ -4,11 +4,16 @@ import com.lxy.rpc.core.protocol.RpcProtocolConstant;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * 帧解码器，解决粘包/半包问题。利用对“数据长度”的控制，从字节流中分离出完整的帧消息
  */
 public class RpcFrameDecoder extends LengthFieldBasedFrameDecoder {
+    // 日志
+    private static final Logger logger = LoggerFactory.getLogger(RpcFrameDecoder.class);
+
     public RpcFrameDecoder(){
         this(
                 RpcProtocolConstant.MAX_FRAME_LENGTH, // 最大帧长度.防止恶意攻击或错误导致内存溢出。
@@ -22,7 +27,6 @@ public class RpcFrameDecoder extends LengthFieldBasedFrameDecoder {
                 // 如果只想输出数据体，可以设为头部长度 RpcProtocolConstant.HEADER_LENGTH。
                 // 但通常我们会在下一个解码器中处理头部，所以这里保留头部。
         );
-        System.out.println("RpcFrameDecoder: 帧解码器构造器被调用");
     }
 
     public RpcFrameDecoder(int maxFrameLength,  int lengthFieldOffset,
@@ -38,10 +42,7 @@ public class RpcFrameDecoder extends LengthFieldBasedFrameDecoder {
         // 更安全的做法是在 LengthFieldBasedFrameDecoder 之前加一个校验魔数的 Handler，
         // 或者在 RpcMessageDecoderNetty 的开头校验魔数（但此时可能已经消耗了一些ByteBuf）
 
-        System.out.println("RpcFrameDecoder: 开始decode(), 客户端输入长度为: " + in.readableBytes());
-
-        Object decodedFrame = super.decode(ctx, in); // 直接调用父类进行帧分割
-
-        return decodedFrame; // 调用父类进行帧分割
+        // 直接调用父类进行帧分割
+        return super.decode(ctx, in); // 调用父类进行帧分割
     }
 }

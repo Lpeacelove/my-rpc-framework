@@ -1,7 +1,7 @@
 package com.lxy.rpc.core.common.exception;
 
 /**
- * 自定义RPC运行时异常
+ * Rpc运行异常的基础类
  */
 public class RpcException extends RuntimeException{
     public RpcException(String message) {
@@ -9,5 +9,9 @@ public class RpcException extends RuntimeException{
 
     public RpcException(String message, Throwable cause) {
         super(message, cause);
+    }
+
+    public RpcException(Throwable cause) {
+        super(cause);
     }
 }

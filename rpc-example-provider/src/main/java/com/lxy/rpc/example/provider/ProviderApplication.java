@@ -33,19 +33,18 @@ public class ProviderApplication {
         }, "RpcServerShutdownHook"));
 
         try {
-            System.out.println("[ProviderApplication]: 正在开始RPC Server 在端口 8088...");
+            logger.info("--- [ProviderApplication]: RPC Server (Netty) startup ---");
             // 4. 启动Netty服务器 (这是一个阻塞操作，直到服务器关闭)
             rpcServer.start();
         } catch (Exception e) {
             if (e instanceof InterruptedException) {
-                System.err.println("[ProviderApplication]: RPC Server (Netty) startup was interrupted.");
-                e.printStackTrace();
+                logger.error("[ProviderApplication]: RPC Server (Netty) startup was interrupted for {}", e.getCause().getMessage());
                 Thread.currentThread().interrupt(); // 重新设置中断状态
             }
-            System.err.println("[ProviderApplication]: An error occurred during RPC Server (Netty) startup or execution.");
+            logger.error("[ProviderApplication]: An error occurred during RPC Server (Netty) startup or execution.");
             e.printStackTrace();
         } finally {
-            System.out.println("--- Provider Application Exiting ---");
+            logger.info("--- [ProviderApplication]: RPC Server (Netty) shutdown ---");
             // 如果 rpcServer.start() 正常返回（例如服务器被关闭），这里可以做一些清理
             // 但由于start()内部是阻塞的，通常main线程不会执行到这里，除非start()内部有退出机制或发生异常
         }

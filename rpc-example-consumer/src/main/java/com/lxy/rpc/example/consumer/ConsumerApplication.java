@@ -12,7 +12,7 @@ import org.slf4j.LoggerFactory;
 public class ConsumerApplication {
     private static final Logger  logger = LoggerFactory.getLogger(ConsumerApplication.class);
     public static void main(String[] args) {
-        System.out.println("====Consumer Application Starting (Netty based)====");
+        logger.info("--- [Provider Application] Starting (Netty based) ---");
 
         // 1. 创建 RpcClientProxy 实例
         //    参数：服务端主机名/IP，服务端端口，请求超时时间（毫秒）
@@ -21,7 +21,7 @@ public class ConsumerApplication {
 
         // 2. 通过代理获取服务接口的实例
         HelloService helloService = clientProxy.getProxy(HelloService.class);
-        System.out.println("[ConsumerApplication]: 获得 HelloService 的客户端代理");
+        logger.info("[ConsumerApplication]: 创建 HelloService 的客户端代理");
 
         // 3. 注册JVM shutdown hook
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
@@ -40,16 +40,14 @@ public class ConsumerApplication {
             Thread.sleep(Long.MAX_VALUE);
         } catch (RpcException e) {
             // 捕获RPC框架层面定义的异常（例如连接失败、超时、序列化错误、服务端处理RPC请求时的通用错误等）
-            System.err.println("An RpcException occurred during RPC call: " + e.getMessage());
+            logger.error("[ConsumerApplication]: An RpcException occurred during RPC call: {}", e.getMessage());
             if (e.getCause() != null) {
-                System.err.println("  Underlying cause: " + e.getCause().getMessage());
+                logger.error("  Underlying cause: {}", e.getCause().getMessage());
             }
-            e.printStackTrace();
         } catch (Throwable e) { // 捕获其他通过RPC传递过来的业务异常
             // 例如，如果服务端方法声明了 throws SomeBusinessException，
             // 并且该异常被正确序列化和反序列化，那么客户端这里可以捕获到它。
-            System.err.println("An unexpected error (possibly business exception) occurred during RPC call: " + e.getMessage());
-            e.printStackTrace();
+            logger.error("[ConsumerApplication]: An unexpected error (possibly business exception) occurred during RPC call: {}", e.getMessage());
         } finally {
             logger.info("[ConsumerApplication]: 方法执行结束");
             // clientProxy.shutdown(); // 已经设置了hook，会自动关闭，这里可以不用调用，但也可以再次调用，但shutdown方法要设计为幂等，意思是多次调用无害或有内部状态判断的

@@ -1,5 +1,7 @@
 package com.lxy.rpc.core.server;
 
+import com.lxy.rpc.core.common.constant.RpcErrorMessages;
+import com.lxy.rpc.core.common.exception.RpcException;
 import com.lxy.rpc.core.protocol.codec.RpcFrameDecoder;
 import com.lxy.rpc.core.protocol.codec.RpcMessageDecoderNetty;
 import com.lxy.rpc.core.protocol.codec.RpcMessageEncoderNetty;
@@ -45,13 +47,13 @@ public class RpcServer {
             this.serviceRegistry = new ZookeeperServiceRegistry(zkAddress);
         } else {
             this.serviceRegistry = null;
-            logger.warn("RpcServer: 未指定zk地址, 远程服务注册功能将不会生效");
+            logger.warn("[RpcServer] 未指定zk地址, 远程服务注册功能将不会生效");
         }
         // 获取本机地址用于注册
         try {
             this.serverAddress = InetAddress.getLocalHost().getHostAddress();
         } catch (UnknownHostException e) {
-            logger.info("RpcServer: 获取本机地址失败, 将使用默认地址 127.0.0.1");
+            logger.info("[RpcServer] 获取本机地址失败, 将使用默认地址 127.0.0.1");
             this.serverAddress = "127.0.0.1";
         }
     }
@@ -70,8 +72,8 @@ public class RpcServer {
         RpcRequestHandler requestHandler = new RpcRequestHandler(this.localServiceRegistry);
 
         try {
-            System.out.println("RpcServer: 服务端启动");
-            logger.info("RpcServer: --- Provider Application Starting ---");
+            logger.info("[RpcServer] 服务端启动中...");
+            logger.info("[RpcServer] --- Provider Application Starting ---");
             ServerBootstrap serverBootstrap = new ServerBootstrap();
             serverBootstrap.group(bossGroup, workerGroup)
                     .channel(NioServerSocketChannel.class)
@@ -85,7 +87,6 @@ public class RpcServer {
 
                         @Override
                         protected void initChannel(SocketChannel socketChannel) throws Exception {
-                            System.out.println("RpcServer: 正在连接...");
                             ChannelPipeline pipeline = socketChannel.pipeline();  // 获取当前的Channel的Pipeline
 
                             pipeline.addLast("loggerHandler", new LoggingHandler(LogLevel.DEBUG)); // 日志处理器
@@ -109,14 +110,12 @@ public class RpcServer {
                         }
                     });
 
-            System.out.println("RpcServer: RpcServer开始监听端口： " + port);
             // 绑定端口，开始接收进来的连接
             ChannelFuture channelFuture = serverBootstrap.bind(port);
             this.serverChannel = channelFuture.channel();
             // 使用sync()等待绑定操作完成 (阻塞当前线程直到绑定成功或失败)
             channelFuture.sync();
-            System.out.println("RpcServer: RpcServer绑定端口成功");
-            logger.info("服务端: RPC 服务器启动，监听端口 {}", port);
+            logger.info("[RpcServer] 服务端: RPC 服务器启动，监听端口 {}", port);
             // 服务器启动成功后，注册服务到zookeeper
             registerServiceToRegistry();
             // 获取服务器Channel，并等待它关闭 (这是一个阻塞操作)
@@ -125,12 +124,12 @@ public class RpcServer {
             // 直到服务器的Channel被关闭。
             this.serverChannel.closeFuture().sync();
         } catch (Exception e) {
-            logger.error("服务端: 启动失败", e);
-            throw new RuntimeException("服务端: 启动失败");
+            logger.error("[RpcServer] 服务端: 启动失败", e);
+            throw new RpcException(RpcErrorMessages.format(RpcErrorMessages.SERVICE_START_FAILED, e.getMessage()));
         } finally {
             // 这个finally块，会在this.serverChannel.closeFuture().sync()解除阻塞之后执行
             // 在关闭服务器之前，注销服务（虽然会自动注销，但也可以手动注销）
-            logger.info("RpcServer: start() 方法中的 finally 块正在被执行...注销服务");
+            logger.info("[RpcServer] start() 方法中的 finally 块正在被执行...注销服务");
             //
             unregisterServiceFromRegistry();
             shutdownNettyEventLoops();
@@ -139,7 +138,7 @@ public class RpcServer {
             }
             // 当服务器最终关闭时（例如，通过外部信号或在main方法结束时），
             // 或者在启动过程中发生异常，需要优雅地关闭Netty的线程组。
-            logger.info("RpcServer: start() 方法中的 finally 块中优雅地关闭Netty线程组执行完毕");
+            logger.info("[RpcServer] start() 方法中的 finally 块中优雅地关闭Netty线程组执行完毕");
         }
     }
 
@@ -147,7 +146,7 @@ public class RpcServer {
      * 优雅地关闭Netty线程组
      */
     private void shutdownNettyEventLoops() {
-        logger.info("RpcServer: 正在关闭Netty线程组");
+        logger.info("[RpcServer] 正在关闭Netty线程组");
         boolean bossGroupShutdown = false;
         boolean workerGroupShutdown = false;
 
@@ -156,13 +155,13 @@ public class RpcServer {
             try {
                 bossGroup.shutdownGracefully(0, 5, TimeUnit.SECONDS).syncUninterruptibly(); // 给bossGroup一个优雅的关闭时间，超过这个时间后，会强制关闭
                 bossGroupShutdown = true;
-                logger.info("RpcServer: BossGroup已成功关闭");
+                logger.info("[RpcServer] BossGroup已成功关闭");
             } catch (Exception e) {
-                logger.error("RpcServer: BossGroup关闭失败", e);
+                logger.error("[RpcServer] BossGroup关闭失败", e);
             }
         } else {
             bossGroupShutdown = true;
-            logger.info("RpcServer: BossGroup已处于关闭状态");
+            logger.info("[RpcServer] BossGroup已处于关闭状态");
         }
 
         // 关闭workerGroup
@@ -170,19 +169,19 @@ public class RpcServer {
             try {
                 workerGroup.shutdownGracefully(0, 15, TimeUnit.SECONDS).syncUninterruptibly(); // 给workerGroup一个更长的优雅的关闭时间，超过这个时间后，会强制关闭
                 workerGroupShutdown = true;
-                logger.info("RpcServer: WorkerGroup已成功关闭");
+                logger.info("[RpcServer] WorkerGroup已成功关闭");
             } catch (Exception e) {
-                logger.error("RpcServer: WorkerGroup关闭失败", e);
+                logger.error("[RpcServer] WorkerGroup关闭失败", e);
             }
         } else {
             workerGroupShutdown = true;
-            logger.info("RpcServer: WorkerGroup已处于关闭状态");
+            logger.info("[RpcServer] WorkerGroup已处于关闭状态");
         }
 
         if (bossGroupShutdown && workerGroupShutdown) {
-            logger.info("RpcServer: Netty线程组已全部关闭");
+            logger.info("[RpcServer] Netty线程组已全部关闭");
         } else {
-            logger.warn("RpcServer: 存在未关闭的Netty线程组");
+            logger.warn("[RpcServer] 存在未关闭的Netty线程组");
         }
     }
 
@@ -191,19 +190,19 @@ public class RpcServer {
      * 停止服务
      */
     public void shutdown() {
-        logger.info("RpcServer: 开始执行shutdown()方法以停止服务...");
+        logger.info("[RpcServer] 开始执行shutdown()方法以停止服务...");
         // 1. 从服务中心注销服务
         unregisterServiceFromRegistry();
 
         // 2. 关闭Netty服务器
         // 2.1 关闭服务器的channel监听，停止接收新的连接
         if (serverChannel != null && serverChannel.isOpen()) {
-            logger.info("RpcServer: 服务器的channel监听正在关闭...");
+            logger.info("[RpcServer] 服务器的channel监听正在关闭...");
             try {
                 serverChannel.close().syncUninterruptibly();
-                logger.info("RpcServer: 服务器的channel监听已关闭");
+                logger.info("[RpcServer] 服务器的channel监听已关闭");
             } catch (Exception e) {
-                logger.error("RpcServer: 服务器的channel监听关闭失败", e);
+                logger.error("[RpcServer] 服务器的channel监听关闭失败", e);
             }
         }
 
@@ -212,16 +211,16 @@ public class RpcServer {
 
         // 3. 关闭与服务中心地连接
         if (serviceRegistry != null) {
-            logger.info("RpcServer: 正在关闭与注册中心的连接...");
+            logger.info("[RpcServer] 正在关闭与注册中心的连接...");
             try {
                 serviceRegistry.close();
-                logger.info("RpcServer: 与注册中心的连接已关闭");
+                logger.info("[RpcServer] 与注册中心的连接已关闭");
             } catch (Exception e) {
-                logger.error("RpcServer: 与注册中心的连接关闭失败", e);
+                logger.error("[RpcServer] 与注册中心的连接关闭失败", e);
             }
         }
 
-        logger.info("RpcServer: shutdown()方法执行完毕");
+        logger.info("[RpcServer] shutdown()方法执行完毕");
     }
 
 
@@ -230,20 +229,20 @@ public class RpcServer {
      */
     private void registerServiceToRegistry() {
         if (this.serviceRegistry == null) {
-            logger.info("RpcServer: 没有外部注册中心，跳过注册本地服务到外部注册中心的步骤");
+            logger.info("[RpcServer] 没有外部注册中心，跳过注册本地服务到外部注册中心的步骤");
             return;
         }
         if (localServiceRegistry.isEmpty()) {
-            logger.info("RpcServer: 本地没有服务需要注册");
+            logger.info("[RpcServer] 本地没有服务需要注册");
             return;
         }
         InetSocketAddress currentInetSocketAddress = new InetSocketAddress(this.serverAddress, this.port);
         for (String serviceName : localServiceRegistry.getRegisteredServiceNames()) {
             try {
                 serviceRegistry.registerService(serviceName, currentInetSocketAddress);
-                logger.info("RpcServer: 成功注册本地服务 {} 到外部注册中心: {}", serviceName, currentInetSocketAddress);
+                logger.info("[RpcServer] 成功注册本地服务 {} 到外部注册中心: {}", serviceName, currentInetSocketAddress);
             } catch (Exception e) {
-                logger.error("RpcServer: 注册本地服务 {} 到外部注册中心: {} 失败",
+                logger.error("[RpcServer] 注册本地服务 {} 到外部注册中心: {} 失败",
                         serviceName, currentInetSocketAddress, e);
             }
         }
@@ -255,16 +254,16 @@ public class RpcServer {
      */
     private void unregisterServiceFromRegistry() {
         if (this.serviceRegistry == null || this.localServiceRegistry == null) {
-            logger.info("RpcServer: 注销服务时发现，外部注册中心未注册服务或本地未注册服务");
+            logger.info("[RpcServer] 注销服务时发现，外部注册中心未注册服务或本地未注册服务");
             return;
         }
         InetSocketAddress currentInetSocketAddress = new InetSocketAddress(this.serverAddress, this.port);
         for (String serviceName : localServiceRegistry.getRegisteredServiceNames()) {
             try {
                 serviceRegistry.unregisterService(serviceName, currentInetSocketAddress);
-                logger.info("RpcServer: 成功从外部注册中心 {} 注销服务 {}", currentInetSocketAddress, serviceName);
+                logger.info("[RpcServer] 成功从外部注册中心 {} 注销服务 {}", currentInetSocketAddress, serviceName);
             } catch (Exception e) {
-                logger.error("RpcServer: 从外部注册中心 {} 注销服务 {} 失败", currentInetSocketAddress, serviceName, e);
+                logger.error("[RpcServer] 从外部注册中心 {} 注销服务 {} 失败", currentInetSocketAddress, serviceName, e);
             }
         }
     }

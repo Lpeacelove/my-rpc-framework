@@ -1,5 +1,7 @@
 package com.lxy.rpc.core.registry;
 
+import com.lxy.rpc.core.common.constant.RpcErrorMessages;
+import com.lxy.rpc.core.common.exception.RpcRegistryException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,10 +29,10 @@ public class LocalServiceRegistry {
     public <T> void register (Class<T> serviceInterface, T serviceImpl) {
         String serviceName = serviceInterface.getName();
         if (serviceMap.containsKey(serviceName)) {
-            logger.warn("服务 {} 已经注册过了,正在覆盖", serviceName);
+            logger.warn("[LocalServiceRegistry] 服务 {} 已经注册过了,正在覆盖", serviceName);
         }
         serviceMap.put(serviceName, serviceImpl);
-        logger.info("服务 {} -> {} 注册成功", serviceName,  serviceImpl.getClass().getName());
+        logger.info("[LocalServiceRegistry] 服务 {} -> {} 注册成功", serviceName,  serviceImpl.getClass().getName());
     }
 
     /**
@@ -41,8 +43,9 @@ public class LocalServiceRegistry {
     public Object getService(String serviceName) {
         Object serviceInstance = serviceMap.get(serviceName);
         if (serviceInstance == null) {
-            logger.warn("服务 {} 不存在", serviceName);
-            throw new RuntimeException("服务 " + serviceName + " 不存在");
+            logger.warn("[LocalServiceRegistry] 服务 {} 不存在", serviceName);
+            throw new RpcRegistryException("[LocalServiceRegistry] " +
+                    RpcErrorMessages.format(RpcErrorMessages.SERVICE_NOT_EXIST, serviceName));
         }
         return serviceInstance;
     }

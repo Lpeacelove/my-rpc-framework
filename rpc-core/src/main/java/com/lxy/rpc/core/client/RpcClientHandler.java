@@ -1,9 +1,12 @@
 package com.lxy.rpc.core.client;
 
+import com.lxy.rpc.core.common.exception.RpcException;
 import com.lxy.rpc.core.protocol.RpcMessage;
 import com.lxy.rpc.core.protocol.RpcProtocolConstant;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.CompletableFuture;
 
@@ -11,6 +14,8 @@ import java.util.concurrent.CompletableFuture;
  * 负责处理服务端返回的响应消息
  */
 public class RpcClientHandler extends SimpleChannelInboundHandler<RpcMessage> {
+    // 日志
+    private static final Logger logger = LoggerFactory.getLogger(RpcClientHandler.class);
 
     /**
      * 当从服务端接收到数据，并且数据被Pipeline中前面的解码器成功解码为 RpcMessage 对象后，Netty会调用该方法
@@ -21,8 +26,8 @@ public class RpcClientHandler extends SimpleChannelInboundHandler<RpcMessage> {
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, RpcMessage responseMessage) throws Exception {
         long requestId = responseMessage.getHeader().getRequestID();
-        System.out.println("RpcClientHandler: received message from server " + ctx.channel().remoteAddress() +
-                ": [Type=" + responseMessage.getHeader().getMsgType() + ", ReqID=" + requestId + "]");
+        logger.info("[RpcClientHandler] received message from server {}: [Type={}, ReqID={}]",
+                ctx.channel().remoteAddress(), responseMessage.getHeader().getMsgType(), requestId);
 
         // 根据消息类型进行处理
         if (responseMessage.getHeader().getMsgType() == RpcProtocolConstant.MSG_TYPE_RESPONSE) {
@@ -33,17 +38,16 @@ public class RpcClientHandler extends SimpleChannelInboundHandler<RpcMessage> {
                 // 如果future不为空，说明有在等待返回响应的future
                 // 设置future的返回结果
                 future.complete(responseMessage);
-                System.out.println("RpcClientHandler completed future for request ID: " + requestId);
+                logger.info("[RpcClientHandler] completed future for request ID: {}", requestId);
             } else {
                 // 如果future为空，说明已经超时了，直接打印异常
-                System.out.println("RpcClientHandler received response for request ID: " + requestId +
-                        " but the future is already removed from the cache");
+                logger.error("[RpcClientHandler] received response for request ID: {} but the future is already removed from the cache", requestId);
             }
         } else if (responseMessage.getHeader().getMsgType() == RpcProtocolConstant.MSG_TYPE_HEARTBEAT_PONG) {
-            System.out.println("RpcClientHandler received heartbeat response from server " +
+            logger.debug("[RpcClientHandler] received heartbeat response from server {}",
                     ctx.channel().remoteAddress());
         } else {
-            System.out.println("RpcClientHandler received unknown message type from server " +
+            logger.error("[RpcClientHandler] received unknown message type from server {}",
                     ctx.channel().remoteAddress());
         }
     }
@@ -56,17 +60,16 @@ public class RpcClientHandler extends SimpleChannelInboundHandler<RpcMessage> {
      */
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-        System.out.println("RpcClientHandler caught exception: " + cause.getMessage());
-        cause.printStackTrace();
+        logger.error("RpcClientHandler caught exception: {}", cause.getMessage());
         // 当发生未捕获的异常时，通常意味着连接可能已损坏或处于不一致状态。
         // 一个常见的做法是关闭连接。
         // 同时，需要通知所有正在等待响应的请求它们失败了。
         if (!RpcClient.PENDING_RPC_FUTURES.isEmpty()) {
-            System.out.println("RpcClientHandler completing " + RpcClient.PENDING_RPC_FUTURES.size() +
-                    " pending futures with exception due to channel error.");
+            logger.error("[RpcClientHandler] completing {} pending futures with exception due to channel error.",
+                    RpcClient.PENDING_RPC_FUTURES.size());
             RpcClient.PENDING_RPC_FUTURES.forEach((id, future) -> {
                 if (!future.isDone()) {
-                    future.completeExceptionally(new Exception("RpcClientHandler caught exception: " + cause.getMessage()));
+                    future.completeExceptionally(new RpcException("RpcClientHandler caught exception: " + cause.getMessage()));
                 }
             });
             RpcClient.PENDING_RPC_FUTURES.clear();
@@ -81,14 +84,14 @@ public class RpcClientHandler extends SimpleChannelInboundHandler<RpcMessage> {
      */
     @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
-        System.out.println("RpcClientHandler: Channel to " +
-                ctx.channel().remoteAddress() + " became inactive (disconnected).");
+        logger.debug("RpcClientHandler: Channel to {} became inactive (disconnected).",
+                ctx.channel().remoteAddress());
         if (!RpcClient.PENDING_RPC_FUTURES.isEmpty()) {
-            System.out.println("RpcClientHandler completing " + RpcClient.PENDING_RPC_FUTURES.size() +
-                    " pending futures with exception due to channel inactivity.");
+            logger.debug("[RpcClientHandler] completing {} pending futures with exception due to channel inactivity.",
+                    RpcClient.PENDING_RPC_FUTURES.size());
             RpcClient.PENDING_RPC_FUTURES.forEach((id, pendingFuture) -> {
                 if (!pendingFuture.isDone()) {
-                    pendingFuture.completeExceptionally(new Exception("RpcClientHandler channel inactive"));
+                    pendingFuture.completeExceptionally(new RpcException("RpcClientHandler channel inactive"));
                 }
             });
             RpcClient.PENDING_RPC_FUTURES.clear();
@@ -104,8 +107,8 @@ public class RpcClientHandler extends SimpleChannelInboundHandler<RpcMessage> {
      */
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
-        System.out.println("RpcClientHandler: Channel to " +
-                ctx.channel().remoteAddress() + " became active.");
+        logger.debug("RpcClientHandler: Channel to {} became active.",
+                ctx.channel().remoteAddress());
         super.channelActive(ctx);
     }
 }

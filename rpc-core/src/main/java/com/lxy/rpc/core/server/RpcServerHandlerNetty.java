@@ -2,6 +2,8 @@ package com.lxy.rpc.core.server;
 
 import com.lxy.rpc.api.dto.RpcRequest;
 import com.lxy.rpc.api.dto.RpcResponse;
+import com.lxy.rpc.core.common.constant.RpcErrorMessages;
+import com.lxy.rpc.core.common.exception.RpcException;
 import com.lxy.rpc.core.protocol.MessageHeader;
 import com.lxy.rpc.core.protocol.RpcMessage;
 import com.lxy.rpc.core.protocol.RpcProtocolConstant;
@@ -9,16 +11,19 @@ import com.lxy.rpc.core.serialization.SerializerFactory;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * 处理客户端请求，调用业务逻辑，发送响应
  */
 public class RpcServerHandlerNetty extends SimpleChannelInboundHandler<RpcMessage> {
+    // 日志
+    private static final Logger logger = LoggerFactory.getLogger(RpcServerHandlerNetty.class);
     private final RpcRequestHandler requestHandler;
 
     public RpcServerHandlerNetty(RpcRequestHandler requestHandler) {
         this.requestHandler = requestHandler;
-        System.out.println("RpcServerHandlerNetty: 创建RpcServerHandlerNetty");
     }
 
     /**
@@ -30,8 +35,7 @@ public class RpcServerHandlerNetty extends SimpleChannelInboundHandler<RpcMessag
      */
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, RpcMessage requestMessage) throws Exception {
-        System.out.println("RpcServerHandlerNetty: received message from client " + ctx.channel().remoteAddress() +
-                ": [Type=" + requestMessage.getHeader().getMsgType() + ", ReqID=" + requestMessage.getHeader().getRequestID() + "]");
+        logger.info("[RpcServerHandlerNetty] received message from client {}: [Type={}, ReqID={}]", ctx.channel().remoteAddress(), requestMessage.getHeader().getMsgType(), requestMessage.getHeader().getRequestID());
         // 初始化要返回给客户端的响应
         RpcMessage responseMessage = null;
         // 读取客户端请求体的内容
@@ -43,14 +47,14 @@ public class RpcServerHandlerNetty extends SimpleChannelInboundHandler<RpcMessag
         if (requestMessage.getHeader().getMsgType() == RpcProtocolConstant.MSG_TYPE_REQUEST) {
             // 如果请求体为空，则返回错误响应
             if (rpcRequest == null) {
-                System.out.println("RpcServerHandlerNetty received empty request from client " +
+                logger.warn("[RpcServerHandlerNetty] received empty request from client {}",
                         ctx.channel().remoteAddress());
                 // 初始化错误消息
                 RpcResponse errorResponse = new RpcResponse();
                 // 设置错误响应的错误状态
-                errorResponse.setException(new RuntimeException("RpcServerHandlerNetty received empty request from client " +
-                        ctx.channel().remoteAddress()));
+                errorResponse.setException(new RpcException(RpcErrorMessages.format(RpcErrorMessages.NULL_RPC_BODY, -1L)));
                 // 设置响应的请求ID
+                //todo 这里的逻辑要该，但首先要将响应ID统一到消息中
                 errorResponse.setResponseId(rpcRequest.getRequestId());
                 // 创建响应头
                 MessageHeader responseHeader = new MessageHeader(
@@ -63,8 +67,8 @@ public class RpcServerHandlerNetty extends SimpleChannelInboundHandler<RpcMessag
                 // 创建响应消息
                 responseMessage = new RpcMessage(responseHeader, errorResponse);
             } else { // 如果是正常请求消息
-                System.out.println("RpcServerHandlerNetty: received request from client " +
-                        ctx.channel().remoteAddress() + ": " + rpcRequest);
+                logger.info("[RpcServerHandlerNetty] received request from client {}: {}",
+                        ctx.channel().remoteAddress(), rpcRequest);
                 // 将请求交给业务逻辑处理
                 RpcResponse rpcResponse = requestHandler.handle(rpcRequest);
                 // 创建响应消息
@@ -76,12 +80,11 @@ public class RpcServerHandlerNetty extends SimpleChannelInboundHandler<RpcMessag
                         RpcProtocolConstant.STATUS_SUCCESS,
                         requestHeader.getRequestID());
                 responseMessage = new RpcMessage(responseHeader, rpcResponse);
-                System.out.println("客户端: 接收到服务端返回的响应" + responseMessage);
             }
         } else if (requestMessage.getHeader().getMsgType() == RpcProtocolConstant.MSG_TYPE_HEARTBEAT_PING) {
             // 处理心跳请求，暂时设置返回消息体为null
-            System.out.println("RpcServerHandlerNetty received heartbeat request from client " +
-                    ctx.channel().remoteAddress());
+            logger.info("[RpcServerHandlerNetty] received heartbeat request from client {}: {}",
+                    ctx.channel().remoteAddress(), rpcRequest);
             MessageHeader responseHeader = new MessageHeader(
                     RpcProtocolConstant.MAGIC_NUMBER,
                     RpcProtocolConstant.VERSION,
@@ -92,8 +95,8 @@ public class RpcServerHandlerNetty extends SimpleChannelInboundHandler<RpcMessag
             responseMessage = new RpcMessage(responseHeader, null);
         } else {
             // 未知消息类型
-            System.out.println("RpcServerHandlerNetty received unknown message type from client "
-                    + ctx.channel().remoteAddress());
+            logger.warn("[RpcServerHandlerNetty] received unknown message type from client {}",
+                    ctx.channel().remoteAddress());
             // 初始化错误消息
             RpcResponse errorResponse = new RpcResponse();
             errorResponse.setException(new RuntimeException("RpcServerHandlerNetty received unknown message type from client "
@@ -110,17 +113,16 @@ public class RpcServerHandlerNetty extends SimpleChannelInboundHandler<RpcMessag
         // 发送响应消息
         if (responseMessage != null) {
             RpcMessage finalResponseMessage = responseMessage;
-            System.out.println("RpcServerHandlerNetty: Preparing to send response. Channel active: " +
-                    ctx.channel().isActive() + ", Channel open: " + ctx.channel().isOpen());
+            logger.info("[RpcServerHandlerNetty] sending response to client {}: [Type={}, ReqID={}]",
+                    ctx.channel().remoteAddress(), responseMessage.getHeader().getMsgType(), responseMessage.getHeader().getRequestID());
             // 添加监听器，当发送成功时，就会调用监听器中的方法，输出日志
             ctx.writeAndFlush(responseMessage).addListener((ChannelFutureListener) future -> {
                 if (future.isSuccess()) {
-                    System.out.println("RpcServerHandlerNetty: successfully sent response/pong for request ID " +
-                            finalResponseMessage.getHeader().getRequestID() + " to " + ctx.channel().remoteAddress());
+                    logger.debug("[RpcServerHandlerNetty] successfully sent response/pong for request ID {} to {}",
+                            finalResponseMessage.getHeader().getRequestID(), ctx.channel().remoteAddress());
                 } else {
-                    System.out.println("the failure of future: " + future.cause());
-                    System.out.println("RpcServerHandlerNetty: failed to send response/pong for request ID " +
-                            finalResponseMessage.getHeader().getRequestID() + " to " + ctx.channel().remoteAddress());
+                    logger.error("[RpcServerHandlerNetty] failed to send response/pong for request ID {} to {}. Cause: {}",
+                            finalResponseMessage.getHeader().getRequestID(), ctx.channel().remoteAddress(), future.cause().getMessage());
                 }
             });
         }
@@ -134,7 +136,7 @@ public class RpcServerHandlerNetty extends SimpleChannelInboundHandler<RpcMessag
      */
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-        System.out.println("RpcServerHandlerNetty caught exception: " + cause.getMessage());
+        logger.error("[RpcServerHandlerNetty] caught exception: {}", cause.getMessage());
         cause.printStackTrace();
         if (ctx.channel().isActive()) {
             // 关闭连接，如果关闭失败则记录
@@ -149,17 +151,12 @@ public class RpcServerHandlerNetty extends SimpleChannelInboundHandler<RpcMessag
      */
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
-        System.out.println("RpcServerHandlerNetty: Channel to " +
-                ctx.channel().remoteAddress() + " became active.");
         super.channelActive(ctx);  // 调用父类实现，确保事件正确传播
         System.out.println("RpcServerHandlerNetty: 激活事件的父类已被实现");
     }
 
     @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
-        System.out.println("RpcServerHandlerNetty: Channel to " +
-                ctx.channel().remoteAddress() +  " became inactive (disconnected).");
         super.channelInactive(ctx);
-        System.out.println("RpcServerHandlerNetty: 失活事件的父类已被实现");
     }
 }

@@ -1,6 +1,8 @@
 package com.lxy.rpc.core.serialization;
 
+import com.lxy.rpc.core.common.constant.RpcErrorMessages;
 import com.lxy.rpc.core.common.constant.SerializerAlgorithmConstant;
+import com.lxy.rpc.core.common.exception.RpcSerializationException;
 import com.lxy.rpc.core.common.exception.SerializationException;
 
 import java.util.Map;
@@ -36,7 +38,7 @@ public class SerializerFactory {
     public static Serializer getSerializer(byte serializerAlgorithm) {
         Serializer serializer = Serializer_MAP.get(serializerAlgorithm);
         if (serializer == null) {
-            throw new SerializationException(UNSUPPORTED_SERIALIZER_ALGORITHM + serializerAlgorithm);
+            throw new RpcSerializationException(RpcErrorMessages.format(RpcErrorMessages.UNSUPPORTED_SERIALIZER_ALGORITHM, serializerAlgorithm));
         }
         // 获取指定编号的序列化器
         return Serializer_MAP.get(serializerAlgorithm);
@@ -49,7 +51,7 @@ public class SerializerFactory {
         Serializer serializer = Serializer_MAP.get(DEFAULT_SERIALIZER.getSerializerAlgorithm());
         if (serializer == null) {
             // 这种情况理论上在静态初始化后不应发生，除非KryoSerializer注册失败
-            throw new SerializationException(FETCH_DEFAULT_SERIALIZER_FAIL + DEFAULT_SERIALIZER.getSerializerAlgorithm());
+            throw new RpcSerializationException(RpcErrorMessages.format(RpcErrorMessages.FETCH_DEFAULT_SERIALIZER_FAILED, DEFAULT_SERIALIZER.getSerializerAlgorithm()));
         }
         return serializer;
     }

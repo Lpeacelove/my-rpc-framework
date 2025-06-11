@@ -6,6 +6,8 @@ import com.esotericsoftware.kryo.io.Output;
 import com.lxy.rpc.api.dto.RpcRequest;
 import com.lxy.rpc.api.dto.RpcResponse;
 import com.lxy.rpc.core.common.constant.MessageConstant;
+import com.lxy.rpc.core.common.constant.RpcErrorMessages;
+import com.lxy.rpc.core.common.exception.RpcSerializationException;
 import com.lxy.rpc.core.common.exception.SerializationException;
 
 import java.io.ByteArrayInputStream;
@@ -55,8 +57,7 @@ public class KryoSerializer implements Serializer{
 //            output.flush(); output在close时会自动flush
             return output.toBytes(); // 获取底层流的字节
         } catch (Exception e) {
-            e.printStackTrace();
-            throw new SerializationException(MessageConstant.KRYO_SERIALIZE_FAIL);
+            throw new RpcSerializationException(RpcErrorMessages.format(RpcErrorMessages.KRYO_SERIALIZE_FAILED, e));
         }
     }
 
@@ -74,9 +75,7 @@ public class KryoSerializer implements Serializer{
              Input input = new Input(bis)) {
             return kryoThreadLocal.get().readObject(input, clazz); // 读取并转换为指定类型
         } catch (Exception e) {
-            e.printStackTrace();
-//            throw new SerializationException(MessageConstant.KRYO_DESERIALIZE_FAIL);
-            throw new RuntimeException("Kryo 反序列化失败: " + e.getMessage(), e);
+            throw new RpcSerializationException(RpcErrorMessages.format(RpcErrorMessages.KRYO_DESERIALIZE_FAILED, e));
         }
 
     }

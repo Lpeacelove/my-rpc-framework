@@ -44,9 +44,7 @@ public class HeartbeatClientHandler extends ChannelInboundHandlerAdapter {
      */
     @Override
     public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
-        System.out.println("[HeartbeatClientHandler] userEventTriggered called. Channel: " + ctx.channel().remoteAddress() +
-                ", Event Object: " + evt +
-                ", Event Class: " + (evt != null ? evt.getClass().getName() : "null"));
+        logger.debug("[HeartbeatClientHandler] userEventTriggered called.");
         if (evt instanceof IdleStateEvent idleStateEvent) {
             IdleState idleState = idleStateEvent.state();
             switch (idleState) {
@@ -68,8 +66,7 @@ public class HeartbeatClientHandler extends ChannelInboundHandlerAdapter {
                     break;
             }
         } else {
-            System.out.println("[HeartbeatClientHandler] 检测到非IdleState事件: ");
-//            logger.debug("HeartbeatClientHandler: 检测到非IdleState事件: {}", evt.getClass().getName());
+            logger.debug("HeartbeatClientHandler: 检测到非IdleState事件");
             super.userEventTriggered(ctx, evt);
         }
     }
@@ -89,8 +86,7 @@ public class HeartbeatClientHandler extends ChannelInboundHandlerAdapter {
         );
         messageHeader.setBodyLength(0);
         RpcMessage<RpcRequest> rpcMessage = new RpcMessage<>(messageHeader,null);
-        System.out.println("[HeartbeatClientHandler] sendPing called. Channel: " + ctx.channel().remoteAddress() +
-                ", PING: " + rpcMessage);
+        logger.debug("[HeartbeatClientHandler] 发送PING");
         ctx.writeAndFlush(rpcMessage).addListener(future -> {
             if (future.isSuccess()) {
                 logger.debug("HeartbeatClientHandler: 发送PING成功");

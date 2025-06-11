@@ -43,32 +43,30 @@ public class HeartbeatServerHandler extends ChannelInboundHandlerAdapter {
             IdleState idleState = idleStateEvent.state();
             if (idleState == IdleState.READER_IDLE) {
                 readIdleCount++;
-                logger.debug("HeartbeatServerHandler: channel: {} 诱发读空闲: {}/{}",
+                logger.debug("[HeartbeatServerHandler] channel: {} 诱发读空闲: {}/{}",
                         ctx.channel().remoteAddress(), readIdleCount, maxReaderIdleCount);
                 if (readIdleCount >= maxReaderIdleCount) {
-                    logger.warn("HeartbeatServerHandler: 读空闲超时 {} 次, 关闭连接, {}",
+                    logger.warn("[HeartbeatServerHandler] 读空闲超时 {} 次, 关闭连接, {}",
                             readIdleCount, ctx.channel().remoteAddress());
                     ctx.close().addListener(future -> {
                         if (future.isSuccess()) {
-                            logger.info("HeartbeatServerHandler: 关闭连接成功 {}", ctx.channel().remoteAddress());
+                            logger.info("[HeartbeatServerHandler] 关闭连接成功 {}", ctx.channel().remoteAddress());
                         } else {
-                            logger.info("HeartbeatServerHandler: 关闭连接失败 {}", ctx.channel().remoteAddress());
+                            logger.info("[HeartbeatServerHandler] 关闭连接失败 {}", ctx.channel().remoteAddress());
                         }
                     });
                 }
             } else if (idleState == IdleState.WRITER_IDLE) {
                 // 服务端通常不主动发送心跳给客户端，除非双向心跳设计
                 // 可以记录日志，但不处理
-                logger.debug("HeartbeatServerHandler: channel: {} 诱发写空闲", ctx.channel().remoteAddress());
+                logger.debug("[HeartbeatServerHandler] channel: {} 诱发写空闲", ctx.channel().remoteAddress());
             } else if (idleState == IdleState.ALL_IDLE) {
                 // 暂不处理，没有必要
-                logger.debug("HeartbeatServerHandler: channel: {} 诱发读写空闲", ctx.channel().remoteAddress());
+                logger.debug("[HeartbeatServerHandler] channel: {} 诱发读写空闲", ctx.channel().remoteAddress());
             }
         } else {
-            System.out.println("[HeartbeatServerHandler] 检测到非IdleState事件: ");
-
-//            logger.debug("HeartbeatServerHandler: channel: {} 触发其他事件: {}",
-//                    ctx.channel().remoteAddress(), evt.getClass().getName());
+            logger.debug("[HeartbeatServerHandler] channel: {} 触发其他事件",
+                    ctx.channel().remoteAddress());
             // 如果不是 IdleStateEvent，则调用下一个 Handler
             super.userEventTriggered(ctx, evt);
         }
@@ -83,7 +81,7 @@ public class HeartbeatServerHandler extends ChannelInboundHandlerAdapter {
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
         readIdleCount = 0;
-        logger.debug("HeartbeatServerHandler: channel, {} 重置读空闲", ctx.channel().remoteAddress());
+        logger.debug("[HeartbeatServerHandler] channel, {} 重置读空闲", ctx.channel().remoteAddress());
         super.channelRead(ctx, msg);
     }
 
@@ -94,7 +92,7 @@ public class HeartbeatServerHandler extends ChannelInboundHandlerAdapter {
      */
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
-        logger.debug("HeartbeatServerHandler: channel, {} 处于活动状态", ctx.channel().remoteAddress());
+        logger.debug("[HeartbeatServerHandler] channel, {} 处于活动状态", ctx.channel().remoteAddress());
         // 重置读空闲计数器
         readIdleCount = 0;
         super.channelActive(ctx);
@@ -107,7 +105,7 @@ public class HeartbeatServerHandler extends ChannelInboundHandlerAdapter {
      */
     @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
-        logger.debug("HeartbeatServerHandler: channel, {} 处于非活动状态", ctx.channel().remoteAddress());
+        logger.debug("[HeartbeatServerHandler] channel, {} 处于非活动状态", ctx.channel().remoteAddress());
         super.channelInactive(ctx);
     }
 
@@ -119,7 +117,7 @@ public class HeartbeatServerHandler extends ChannelInboundHandlerAdapter {
      */
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-        logger.error("HeartbeatServerHandler: channel, {} 抛出异常", ctx.channel().remoteAddress(), cause);
+        logger.error("[HeartbeatServerHandler] channel, {} 抛出异常", ctx.channel().remoteAddress(), cause);
         // 出现异常，可以抛给下一个处理器，或者简单地直接关闭连接
         super.exceptionCaught(ctx, cause);
     }

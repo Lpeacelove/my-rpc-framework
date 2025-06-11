@@ -1,6 +1,8 @@
 package com.lxy.rpc.core.registry.zookeeper;
 
+import com.lxy.rpc.core.common.constant.RpcErrorMessages;
 import com.lxy.rpc.core.common.exception.RegistryException;
+import com.lxy.rpc.core.common.exception.RpcRegistryException;
 import com.lxy.rpc.core.registry.ServiceDiscovery;
 import com.lxy.rpc.core.registry.ServiceInstancesChangeListener;
 import org.apache.curator.framework.CuratorFramework;
@@ -47,10 +49,11 @@ public class ZookeeperServiceDiscovery implements ServiceDiscovery {
                     ))
                     .build();
             this.zkClient.start();
-            logger.info("ZookeeperServiceDiscovery: 创建Zookeeper服务发现成功，地址为 {}", zkAddress);
+            logger.info("[ZookeeperServiceDiscovery] 创建Zookeeper服务发现成功，地址为 {}", zkAddress);
         } catch (Exception e) {
-            logger.error("ZookeeperServiceDiscovery: 创建Zookeeper服务发现失败，地址为 {}", zkAddress, e);
-            throw new RegistryException("ZookeeperServiceDiscovery: 创建Zookeeper服务发现失败，地址为 " + zkAddress, e);
+            logger.error("[ZookeeperServiceDiscovery] 创建Zookeeper服务发现失败，地址为 {}", zkAddress, e);
+            throw new RpcRegistryException("[ZookeeperServiceDiscovery] " +
+                    RpcErrorMessages.format(RpcErrorMessages.ZK_SERVICE_DISCOVERY_FAILED, zkAddress, e));
         }
     }
 
@@ -59,7 +62,7 @@ public class ZookeeperServiceDiscovery implements ServiceDiscovery {
         // 1. 优先查询本地换缓存
         List<InetSocketAddress> cachedAddresses = serviceAddressCache.get(serviceName);
         if (cachedAddresses != null && !cachedAddresses.isEmpty()) {
-            logger.debug("ZookeeperServiceDiscovery: 从本地缓存中获取服务 {} 的实例列表成功", serviceName);
+            logger.debug("[ZookeeperServiceDiscovery] 从本地缓存中获取服务 {} 的实例列表成功", serviceName);
             return cachedAddresses;
         }
 
@@ -68,7 +71,7 @@ public class ZookeeperServiceDiscovery implements ServiceDiscovery {
         try {
             // 判断服务路径是否存在
             if (zkClient.checkExists().forPath(servicePath) == null) {
-                logger.warn("ZookeeperServiceDiscovery: 路径 {} 下的服务 {} 不存在", servicePath, serviceName);
+                logger.warn("[ZookeeperServiceDiscovery] 路径 {} 下的服务 {} 不存在", servicePath, serviceName);
                 serviceAddressCache.put(serviceName, new ArrayList<>()); // 创建一个空的实例列表，避免频繁查询
                 return new ArrayList<>();
             }
@@ -76,7 +79,7 @@ public class ZookeeperServiceDiscovery implements ServiceDiscovery {
             // 判断服务实例列表是否存在
             List<String> childrenNodes = zkClient.getChildren().forPath(servicePath);
             if (childrenNodes == null || childrenNodes.isEmpty()) {
-                logger.warn("ZookeeperServiceDiscovery: 路径 {} 下的服务 {} 的实例列表为空", servicePath, serviceName);
+                logger.warn("[ZookeeperServiceDiscovery] 路径 {} 下的服务 {} 的实例列表为空", servicePath, serviceName);
                 serviceAddressCache.put(serviceName, new ArrayList<>()); // 创建一个空的实例列表，避免频繁查询
                 return new ArrayList<>();
             }
@@ -94,13 +97,13 @@ public class ZookeeperServiceDiscovery implements ServiceDiscovery {
                     })
                     .filter(address -> address != null)
                     .collect(Collectors.toList());
-            logger.info("ZookeeperServiceRegistry: 获取服务 {} 的服务实例成功, 服务实例列表为 {}",
+            logger.info("[ZookeeperServiceDiscovery] 获取服务 {} 的服务实例成功, 服务实例列表为 {}",
                     serviceName, discoveredAddresses);
             // 更新本地缓存
             serviceAddressCache.put(serviceName, discoveredAddresses);
             return discoveredAddresses;
         } catch (Exception e) {
-            logger.error("ZookeeperServiceRegistry: 获取服务 {} 的服务实例失败", serviceName, e);
+            logger.error("[ZookeeperServiceDiscovery] 获取服务 {} 的服务实例失败", serviceName, e);
             // 出错时返回缓存（可能是旧的但可用），或者空列表
             return serviceAddressCache.getOrDefault(serviceName, new ArrayList<>());
         }
@@ -120,7 +123,7 @@ public class ZookeeperServiceDiscovery implements ServiceDiscovery {
                         PathChildrenCacheEvent.Type eventType = event.getType();
                         ChildData childData = event.getData();
                         // 暂时设置只要子节点有变化，就拉取服务节点列表，并更新到缓存中。
-                        logger.info("ZookeeperServiceRegistry: 服务节点 {} 发生变化，重新拉取服务节点列表, event: {}, path: {}",
+                        logger.info("[ZookeeperServiceDiscovery] 服务节点 {} 发生变化，重新拉取服务节点列表, event: {}, path: {}",
                                 serviceName, eventType, childData != null ? childData.getPath() : "N/A");
                         // 重新拉取服务节点列表，并更新缓存
                         List<InetSocketAddress> latestAddresses = discoverServiceAndRefreshCache(serviceName);
@@ -130,17 +133,18 @@ public class ZookeeperServiceDiscovery implements ServiceDiscovery {
                     .build());
             try {
                 newCache.start();
-                logger.info("ZookeeperServiceDiscovery: 开启CuratorCache监视路径, {}", servicePath);
+                logger.info("[ZookeeperServiceDiscovery] 开启CuratorCache监视路径, {}", servicePath);
             } catch (Exception e) {
-                logger.error("ZookeeperServiceDiscovery: 开启CuratorCache监视路径失败, {}", servicePath, e);
-                throw new RegistryException("ZookeeperServiceDiscovery: 开启CuratorCache监视路径失败, " + servicePath, e);
+                logger.error("[ZookeeperServiceDiscovery] 开启CuratorCache监视路径失败, {}", servicePath, e);
+                throw new RpcRegistryException("[ZookeeperServiceDiscovery] " +
+                        RpcErrorMessages.format(RpcErrorMessages.CURATOR_CACHE_START_FAILED, servicePath, e));
             }
             return newCache;
         });
 
         // 将监视器添加到监听列表中
         serviceChangeListeners.computeIfAbsent(serviceName, key -> new ArrayList<>()).add(listener);
-        logger.info("ZookeeperServiceDiscovery: 添加服务变化监听器, {}", serviceName);
+        logger.info("[ZookeeperServiceDiscovery] 添加服务变化监听器, {}", serviceName);
 
         // 首次订阅时，立即获取一次最新列表并通知(也就是说，在首次启动时，其实并没有变化，上述过程不会触发，但总需要手动订阅一下)
         List<InetSocketAddress> initialAddresses = discoverServiceAndRefreshCache(serviceName);
@@ -155,7 +159,7 @@ public class ZookeeperServiceDiscovery implements ServiceDiscovery {
     private void notifyListeners(String serviceName, List<InetSocketAddress> latestAddresses) {
         List<ServiceInstancesChangeListener> listeners = serviceChangeListeners.get(serviceName);
         if (listeners != null && !listeners.isEmpty()) {
-            logger.debug("ZookeeperServiceRegistry: 服务 {} 发生变化，通知 {} 个监听者", serviceName, listeners.size());
+            logger.debug("[ZookeeperServiceDiscovery] 服务 {} 发生变化，通知 {} 个监听者", serviceName, listeners.size());
             listeners.forEach(listener ->
                     listener.onInstancesChange(serviceName, latestAddresses));
         }
@@ -182,10 +186,10 @@ public class ZookeeperServiceDiscovery implements ServiceDiscovery {
                     .collect(Collectors.toList());
             // 更新缓存
             serviceAddressCache.put(serviceName, addresses);
-            logger.debug("ZookeeperServiceRegistry: 更新服务 {} 的实例列表成功, 实例列表为 {}", serviceName, addresses);
+            logger.debug("[ZookeeperServiceDiscovery] 更新服务 {} 的实例列表成功, 实例列表为 {}", serviceName, addresses);
             return addresses;
         } catch (Exception e) {
-            logger.error("ZookeeperServiceRegistry: 更新服务 {} 的实例列表失败", serviceName, e);
+            logger.error("[ZookeeperServiceDiscovery] 更新服务 {} 的实例列表失败", serviceName, e);
             return serviceAddressCache.getOrDefault(serviceName, new ArrayList<>());
         }
     }
@@ -195,13 +199,13 @@ public class ZookeeperServiceDiscovery implements ServiceDiscovery {
         List<ServiceInstancesChangeListener> listeners = serviceChangeListeners.get(serviceName);
         if (listeners != null) {
             listeners.remove(listener);
-            logger.info("ZookeeperServiceRegistry: Listener {} 取消订阅服务 {} 的实例变化", listener.getClass().getSimpleName(), serviceName);
+            logger.info("[ZookeeperServiceDiscovery] Listener {} 取消订阅服务 {} 的实例变化", listener.getClass().getSimpleName(), serviceName);
             if (listeners.isEmpty()) {
                 // 如果没有监听器了，可以关闭并移除CuratorCache
                 CuratorCache watcherCache = serviceWatcherCaches.remove(serviceName);
                 if (watcherCache != null) {
                     watcherCache.close();
-                    logger.info("ZookeeperServiceRegistry: 移除并关闭服务 {} 的 CuratorCache", serviceName);
+                    logger.info("[ZookeeperServiceDiscovery] 移除并关闭服务 {} 的 CuratorCache", serviceName);
                 }
                 serviceChangeListeners.remove(serviceName); // 也要移除列表本身
             }
@@ -215,7 +219,7 @@ public class ZookeeperServiceDiscovery implements ServiceDiscovery {
         serviceChangeListeners.clear();
         if (zkClient != null) {
             zkClient.close();
-            logger.info("ZookeeperServiceRegistry: 停止 Zookeeper 客户端");
+            logger.info("[ZookeeperServiceDiscovery] 停止 Zookeeper 客户端");
         }
     }
 

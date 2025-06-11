@@ -1,5 +1,7 @@
 package com.lxy.rpc.core.serialization;
 
+import com.lxy.rpc.core.common.constant.RpcErrorMessages;
+import com.lxy.rpc.core.common.exception.RpcSerializationException;
 import com.lxy.rpc.core.common.exception.SerializationException;
 
 import java.io.ByteArrayInputStream;
@@ -30,7 +32,7 @@ public class JdkSerializer implements Serializer{
             oos.flush();
             return bos.toByteArray();
         } catch (Exception e) {
-            throw new SerializationException(JDK_SERIALIZE_FAIL);
+            throw new RpcSerializationException(RpcErrorMessages.format(RpcErrorMessages.JDK_SERIALIZE_FAILED, e));
         }
     }
 
@@ -47,7 +49,7 @@ public class JdkSerializer implements Serializer{
             ObjectInputStream ois = new ObjectInputStream(bis)) {
             return clazz.cast(ois.readObject());
         } catch (Exception e) {
-            throw new SerializationException(JDK_DESERIALIZE_FAIL);
+            throw new RpcSerializationException(RpcErrorMessages.format(RpcErrorMessages.JDK_DESERIALIZE_FAILED, e));
         }
     }
 
