@@ -26,6 +26,9 @@
 
 ## 🏭项目架构(待实现)
 
+### 核心组件及调用流程
+![MyRPCFramework Architecture](docs/images/my-architecture.png)
+
 ### 核心流程简述：
 1. **服务注册：** Provider启动时，通过`ServiceRegistry`组件(如`ZookeeperServiceRegistry`)将自身服务信息(接口名、IP、端口)注册到ZooKeeper的临时有序节点。
 2. **服务发现：** Consumer在首次调用或需要时，通过`ServiceDiscovery`组件(如`ZookeeperServiceDiscovery`)从ZooKeeper查询指定服务名可用的Provider实例地址列表，并缓存。同时，会监听ZooKeeper中服务节点的变化，动态更新本地缓存。
@@ -99,7 +102,7 @@ my-rpc-framework/
 │   └── src/main/java/com/lxy/rpc/example/provider/
 ├── rpc-example-consumer/        # 服务消费者示例模块
 │   └── src/main/java/com/lxy/rpc/example/consumer/
-├── docs/                        # (可选) 文档和图片资源
+├── docs/                        # 文档和图片资源
 │   └── images/
 ├── pom.xml                      # Maven项目配置文件
 └── README.md                    # 本文档
