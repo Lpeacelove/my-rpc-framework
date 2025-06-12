@@ -1,7 +1,6 @@
 package com.lxy.rpc.core.registry.zookeeper;
 
 import com.lxy.rpc.core.common.constant.RpcErrorMessages;
-import com.lxy.rpc.core.common.exception.RegistryException;
 import com.lxy.rpc.core.common.exception.RpcRegistryException;
 import com.lxy.rpc.core.registry.ServiceDiscovery;
 import com.lxy.rpc.core.registry.ServiceInstancesChangeListener;
@@ -11,6 +10,7 @@ import org.apache.curator.framework.recipes.cache.ChildData;
 import org.apache.curator.framework.recipes.cache.CuratorCache;
 import org.apache.curator.framework.recipes.cache.CuratorCacheListener;
 import org.apache.curator.framework.recipes.cache.PathChildrenCacheEvent;
+import org.apache.curator.framework.state.ConnectionState;
 import org.apache.curator.retry.ExponentialBackoffRetry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,6 +48,23 @@ public class ZookeeperServiceDiscovery implements ServiceDiscovery {
                             ZookeeperConstant.CURATOR_RETRY_MAX_RETRIES
                     ))
                     .build();
+            this.zkClient.getConnectionStateListenable().addListener((client, newState) -> {
+                logger.warn("[ZookeeperServiceDiscovery] Zookeeper连接状态改变，当前状态为 {}", newState);
+                if (newState == ConnectionState.LOST) {
+                    logger.error("[ZookeeperServiceDiscovery] Zookeeper连接断开，清除所有服务地址缓存，请检查Zookeeper服务是否正常");
+                    for (String serviceName : serviceAddressCache.keySet()) {
+                        serviceAddressCache.put(serviceName, new ArrayList<>());
+                        notifyListeners(serviceName, new ArrayList<>());
+                    }
+                    serviceWatcherCaches.values().forEach(CuratorCache::close);
+                    serviceWatcherCaches.clear();
+                } else if (newState == ConnectionState.SUSPENDED) {
+                    logger.warn("[ZookeeperServiceDiscovery] Zookeeper连接暂时断开，服务发现可能暂时不可用");
+                    // SUSPENDED 状态下，Curator会尝试重连，暂时不需要清除服务地址缓存，因为Curator会自动重连并重新订阅
+                } else if (newState == ConnectionState.RECONNECTED) {
+                    logger.info("[ZookeeperServiceDiscovery] Zookeeper连接重新连接成功");
+                }
+            });
             this.zkClient.start();
             logger.info("[ZookeeperServiceDiscovery] 创建Zookeeper服务发现成功，地址为 {}", zkAddress);
         } catch (Exception e) {

@@ -6,7 +6,6 @@ import java.io.Serializable;
  * 响应对象，用于封装远程调用的响应结果，包括响应结果和异常信息，V0.1可能直接返回结果，但先定义好结构，后续再优化
  */
 public class RpcResponse implements Serializable {
-    private String responseId; // 响应ID，用于后续异步处理
     private Object result;
     private Exception exception;
 
@@ -19,14 +18,6 @@ public class RpcResponse implements Serializable {
 
     public RpcResponse(Exception exception) {
         this.exception = exception;
-    }
-
-    public String getResponseId() {
-        return responseId;
-    }
-
-    public void setResponseId(String responseId) {
-        this.responseId = responseId;
     }
 
     public Object getResult() {

@@ -7,7 +7,7 @@ import java.util.Arrays;
  * 请求对象，V0.1暂时可能可以直接传递参数，但先定义好结构，后续再扩展
  */
 public class RpcRequest implements Serializable {
-    private String requestId; // 请求ID，用于后续异步处理
+//    private String requestId; // 请求ID，用于后续异步处理
     private String interfaceName;
     private String methodName;
     private Class<?>[] parameterTypes;
@@ -16,21 +16,20 @@ public class RpcRequest implements Serializable {
     public RpcRequest() {
     }
 
-    public RpcRequest(String requestId,String interfaceName, String methodName, Class<?>[] parameterTypes, Object[] parameters) {
-        this.requestId = requestId;
+    public RpcRequest(String interfaceName, String methodName, Class<?>[] parameterTypes, Object[] parameters) {
         this.interfaceName = interfaceName;
         this.methodName = methodName;
         this.parameterTypes = parameterTypes;
         this.parameters = parameters;
     }
 
-    public String getRequestId() {
-        return requestId;
-    }
+//    public String getRequestId() {
+//        return requestId;
+//    }
 
-    public void setRequestId(String requestId) {
-        this.requestId = requestId;
-    }
+//    public void setRequestId(String requestId) {
+//        this.requestId = requestId;
+//    }
 
     public String getInterfaceName() {
         return interfaceName;

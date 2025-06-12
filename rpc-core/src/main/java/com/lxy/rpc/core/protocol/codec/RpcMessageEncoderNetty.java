@@ -1,7 +1,6 @@
 package com.lxy.rpc.core.protocol.codec;
 
 import com.lxy.rpc.core.common.constant.RpcErrorMessages;
-import com.lxy.rpc.core.common.exception.ProtocolException;
 import com.lxy.rpc.core.common.exception.RpcCodecException;
 import com.lxy.rpc.core.protocol.RpcMessage;
 import com.lxy.rpc.core.protocol.RpcProtocolConstant;

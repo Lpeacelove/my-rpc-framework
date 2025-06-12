@@ -1,18 +1,20 @@
 package com.lxy.rpc.core.registry.zookeeper;
 
 import com.lxy.rpc.core.common.constant.RpcErrorMessages;
-import com.lxy.rpc.core.common.exception.RegistryException;
-import com.lxy.rpc.core.common.exception.RpcException;
 import com.lxy.rpc.core.common.exception.RpcRegistryException;
 import com.lxy.rpc.core.registry.ServiceRegistry;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
+import org.apache.curator.framework.state.ConnectionState;
 import org.apache.curator.retry.ExponentialBackoffRetry;
 import org.apache.zookeeper.CreateMode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.InetSocketAddress;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * 基于zookeeper的服务注册类
@@ -22,6 +24,8 @@ public class ZookeeperServiceRegistry implements ServiceRegistry {
     private static final Logger logger = LoggerFactory.getLogger(ZookeeperServiceRegistry.class);
     // zookeeper客户端
     private final CuratorFramework zkClient;
+    // 用于重连后重新注册
+    private final List<Map<String, InetSocketAddress>> registeredServices = new CopyOnWriteArrayList<>();
 
     /**
      * 构造函数
@@ -38,6 +42,17 @@ public class ZookeeperServiceRegistry implements ServiceRegistry {
                             ZookeeperConstant.CURATOR_RETRY_MAX_RETRIES
                     ))
                     .build();
+            this.zkClient.getConnectionStateListenable().addListener((client, newState)-> {
+                logger.warn("[ZookeeperServiceRegistry] 连接状态改变: {}", newState);
+                if (newState == ConnectionState.RECONNECTED) {
+                    logger.info("[ZookeeperServiceRegistry] 重连成功, 正在重新注册服务...");
+                    for (Map<String, InetSocketAddress> service : registeredServices) {
+                        for (Map.Entry<String, InetSocketAddress> entry : service.entrySet()) {
+                            registerService(entry.getKey(), entry.getValue());
+                        }
+                    }
+                }
+            });
             this.zkClient.start();  // 启动客户端
             logger.info("[ZookeeperServiceRegistry] 成功连接到 zookeeper 服务注册，地址为 {}", zkAddress);
         } catch (Exception e) {
@@ -77,7 +92,8 @@ public class ZookeeperServiceRegistry implements ServiceRegistry {
             throw new RpcRegistryException("[ZookeeperServiceRegistry] " +
                     RpcErrorMessages.format(RpcErrorMessages.REGISTER_SERVICE_FAILED, serviceName, e));
         }
-
+        // 记录下来，方便重连的时候使用
+        registeredServices.add(Map.of(serviceName, inetSocketAddress));
     }
 
     @Override
@@ -89,6 +105,7 @@ public class ZookeeperServiceRegistry implements ServiceRegistry {
         // 简单起见，我们目前依赖临时节点的自动删除特性。
         logger.info("[ZookeeperServiceRegistry] 自动删除服务 {} 的实例 {}",
                 serviceName, RpcFrameworkUtils.formatAddress(inetSocketAddress));
+        registeredServices.removeIf(service -> service.get(serviceName).equals(inetSocketAddress));
     }
 
     @Override

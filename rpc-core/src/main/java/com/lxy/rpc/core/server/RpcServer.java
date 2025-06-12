@@ -23,7 +23,7 @@ import org.slf4j.LoggerFactory;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 
 /**
  * 启动服务，监听端口，接收请求
@@ -191,8 +191,26 @@ public class RpcServer {
      */
     public void shutdown() {
         logger.info("[RpcServer] 开始执行shutdown()方法以停止服务...");
-        // 1. 从服务中心注销服务
-        unregisterServiceFromRegistry();
+        final long shutdownTimeoutSeconds = 5;  // 设置优雅关闭的超时时间为5秒
+
+        // 1. 从服务中心注销服务(带超时)
+        if (serviceRegistry != null) {
+            logger.info("[RpcServer] 正在从注册中心注销服务..., 时间限制为 {} 秒", shutdownTimeoutSeconds);
+            ExecutorService unregisterThread = Executors.newSingleThreadExecutor(
+                    r -> new Thread(r, "RpcServerServiceUnregisterThread")); // 创建一个线程，并设置线程名称
+            Future<?> unregisterFuture = unregisterThread.submit(this::unregisterServiceFromRegistry);  // 将任务提交给线程池执行
+            try {
+                unregisterFuture.get(shutdownTimeoutSeconds, TimeUnit.SECONDS);
+                logger.info("[RpcServer] 从注册中心注销服务成功");
+            } catch (TimeoutException e) {
+                unregisterFuture.cancel(true);
+                logger.warn("[RpcServer] 从注册中心注销服务超时，已取消任务");
+            } catch (Exception e) {
+                logger.error("[RpcServer] 从注册中心注销服务失败", e);
+            } finally {
+                unregisterThread.shutdownNow();   // 关闭线程池
+            }
+        }
 
         // 2. 关闭Netty服务器
         // 2.1 关闭服务器的channel监听，停止接收新的连接
@@ -211,12 +229,26 @@ public class RpcServer {
 
         // 3. 关闭与服务中心地连接
         if (serviceRegistry != null) {
-            logger.info("[RpcServer] 正在关闭与注册中心的连接...");
+            logger.info("[RpcServer] 正在关闭与注册中心的连接..., 时间限制为 {} 秒",  shutdownTimeoutSeconds);
+            ExecutorService zkCloseThread = Executors.newSingleThreadExecutor(
+                    r -> new Thread(r, "RpcServerZkCloseThread"));
+            Future<?> zkCloseFuture = zkCloseThread.submit(() -> {
+                try {
+                    serviceRegistry.close();
+                } catch (Exception e) {
+                    logger.error("[RpcServer] 与注册中心的连接关闭失败", e);
+                }
+            });
             try {
-                serviceRegistry.close();
+                zkCloseFuture.get(shutdownTimeoutSeconds, TimeUnit.SECONDS);
                 logger.info("[RpcServer] 与注册中心的连接已关闭");
+            } catch (TimeoutException e){
+                zkCloseFuture.cancel(true);
+                logger.warn("[RpcServer] 与注册中心的连接关闭超时，已取消任务");
             } catch (Exception e) {
                 logger.error("[RpcServer] 与注册中心的连接关闭失败", e);
+            } finally {
+                zkCloseThread.shutdownNow();
             }
         }
 

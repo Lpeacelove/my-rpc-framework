@@ -34,23 +34,21 @@ public class RpcRequestHandler{
         if (request == null) {
             logger.warn("[RpcRequestHandler] 接收到一个空请求");
             RpcResponse nullRequestResponse = new RpcResponse();
-            nullRequestResponse.setResponseId(null);
             nullRequestResponse.setException(new RpcException(RpcErrorMessages.NULL_RPC_BODY));
             return nullRequestResponse;
         }
 
-        logger.debug("[RpcRequestHandler] 处理业务逻辑[ReqID={}, Interface={}, Method={}]",
-                request.getRequestId(), request.getInterfaceName(), request.getMethodName());
+        logger.debug("[RpcRequestHandler] 处理业务逻辑[Interface={}, Method={}]",
+                request.getInterfaceName(), request.getMethodName());
 
         RpcResponse response = new RpcResponse();
-        response.setResponseId(request.getRequestId());
 
         try {
             // 1. 从注册表中获取服务实例
             Object service = serviceRegistry.getService(request.getInterfaceName());
             if(service == null) {
                 String errMsg = "Service not found for interface: " + request.getInterfaceName();
-                logger.warn("[RpcRequestHandler] {} (Request ID: {})", errMsg, request.getRequestId());
+                logger.warn("[RpcRequestHandler] {}", errMsg);
                 response.setException(new RpcServiceNotFoundException(errMsg));
                 return response;
             }
@@ -59,7 +57,7 @@ public class RpcRequestHandler{
             Method method = service.getClass().getMethod(request.getMethodName(), request.getParameterTypes());
             if (method == null) {
                 String errMsg = "Method not found for interface: " + request.getInterfaceName() + ", method: " + request.getMethodName();
-                logger.warn("[RpcRequestHandler] {} (Request ID: {})", errMsg, request.getRequestId());
+                logger.warn("[RpcRequestHandler] {}", errMsg);
                 response.setException(new RpcMethodNotFoundException(errMsg));
                 return response;
             }
@@ -69,26 +67,26 @@ public class RpcRequestHandler{
 
             // 4. 将执行结果设置到RpcResponse中
             response.setResult(result);
-            logger.debug("[RpcRequestHandler] Successfully invoked method {} for request ID {}, result type: {}",
-                    request.getMethodName(), request.getRequestId(), (result != null ? result.getClass().getName() : "null"));
+            logger.debug("[RpcRequestHandler] Successfully invoked method {} , result type: {}",
+                    request.getMethodName(), (result != null ? result.getClass().getName() : "null"));
         } catch (NoSuchMethodException e) {
             String errMsg = "Method not found: " + request.getMethodName() + " with specified parameters in service: " + request.getInterfaceName();
-            logger.warn("[RpcRequestHandler] {} (Request ID: {})", errMsg, request.getRequestId(), e);
+            logger.warn("[RpcRequestHandler] {}", errMsg, e);
             response.setException(new RpcMethodNotFoundException(errMsg));
         } catch (IllegalAccessException e) {
             String errMsg = "Illegal access while invoking method: " + request.getMethodName();
-            logger.warn("[RpcRequestHandler] {} (Request ID: {})", errMsg, request.getRequestId(), e);
+            logger.warn("[RpcRequestHandler] {}", errMsg, e);
             response.setException(new RpcMethodNotFoundException(errMsg));
         } catch (InvocationTargetException e) {
             // InvocationTargetException 包装了被调用方法内部抛出的实际异常
             // 我们应该将这个实际异常设置到RpcResponse中，以便客户端能够感知到业务异常
             Throwable targetException = e.getTargetException();
-            logger.warn("[RpcRequestHandler] Method {} threw an exception (Request ID: {})", request.getMethodName(), request.getRequestId(), targetException);
+            logger.warn("[RpcRequestHandler] Method {} threw an exception", request.getMethodName(), targetException);
             response.setException((Exception) targetException); // 设置原始业务异常
         } catch (Exception e) {
             // 捕获其他所有可能的通用异常
             String errMsg = "Unexpected error during method invocation: " + request.getMethodName();
-            logger.error("[RpcRequestHandler] {} (Request ID: {})", errMsg, request.getRequestId(), e);
+            logger.error("[RpcRequestHandler] {}", errMsg, e);
             response.setException(new RpcException(errMsg));
         }
         return response;

@@ -30,28 +30,28 @@ public class ConsumerApplication {
             logger.info("[ConsumerApplication]: 通过hook成功关闭服务");
         }, "RpcClientProxyShutdownHook"));
 
-        // 4.1 正常调用方法进行测试
-        try {
-            logger.info("[ConsumerApplication]: 正在调用 helloService.sayHello...");
-            String result = helloService.sayHello(" 你好 泵就 奥拉 阿尼亚赛哟...");
-            logger.info("[ConsumerApplication]: helloService.sayHello 调用结果为: {}", result);
-
-            logger.info("====[ConsumerApplication]: 测试心跳机制以及ctrl+c优雅停机====");
-            Thread.sleep(Long.MAX_VALUE);
-        } catch (RpcException e) {
-            // 捕获RPC框架层面定义的异常（例如连接失败、超时、序列化错误、服务端处理RPC请求时的通用错误等）
-            logger.error("[ConsumerApplication]: An RpcException occurred during RPC call: {}", e.getMessage());
-            if (e.getCause() != null) {
-                logger.error("  Underlying cause: {}", e.getCause().getMessage());
-            }
-        } catch (Throwable e) { // 捕获其他通过RPC传递过来的业务异常
-            // 例如，如果服务端方法声明了 throws SomeBusinessException，
-            // 并且该异常被正确序列化和反序列化，那么客户端这里可以捕获到它。
-            logger.error("[ConsumerApplication]: An unexpected error (possibly business exception) occurred during RPC call: {}", e.getMessage());
-        } finally {
-            logger.info("[ConsumerApplication]: 方法执行结束");
-            // clientProxy.shutdown(); // 已经设置了hook，会自动关闭，这里可以不用调用，但也可以再次调用，但shutdown方法要设计为幂等，意思是多次调用无害或有内部状态判断的
-        }
+//        // 4.1 正常调用方法进行测试
+//        try {
+//            logger.info("[ConsumerApplication]: 正在调用 helloService.sayHello...");
+//            String result = helloService.sayHello(" 你好 泵就 奥拉 阿尼亚赛哟...");
+//            logger.info("[ConsumerApplication]: helloService.sayHello 调用结果为: {}", result);
+//
+//            logger.info("====[ConsumerApplication]: 测试心跳机制以及ctrl+c优雅停机====");
+//            Thread.sleep(Long.MAX_VALUE);
+//        } catch (RpcException e) {
+//            // 捕获RPC框架层面定义的异常（例如连接失败、超时、序列化错误、服务端处理RPC请求时的通用错误等）
+//            logger.error("[ConsumerApplication]: An RpcException occurred during RPC call: {}", e.getMessage());
+//            if (e.getCause() != null) {
+//                logger.error("  Underlying cause: {}", e.getCause().getMessage());
+//            }
+//        } catch (Throwable e) { // 捕获其他通过RPC传递过来的业务异常
+//            // 例如，如果服务端方法声明了 throws SomeBusinessException，
+//            // 并且该异常被正确序列化和反序列化，那么客户端这里可以捕获到它。
+//            logger.error("[ConsumerApplication]: An unexpected error (possibly business exception) occurred during RPC call: {}", e.getMessage());
+//        } finally {
+//            logger.info("[ConsumerApplication]: 方法执行结束");
+//            // clientProxy.shutdown(); // 已经设置了hook，会自动关闭，这里可以不用调用，但也可以再次调用，但shutdown方法要设计为幂等，意思是多次调用无害或有内部状态判断的
+//        }
 
 //        // 4.2 示例：测试一个不存在的方法（如果你的代理或服务端有相应处理，会抛出异常）
 //        try {
@@ -78,24 +78,24 @@ public class ConsumerApplication {
 
 
 
-//        // 4.3 进行多次调用，观察负载均衡效果（如果启动多个Provider实例）
-//        for (int i = 0; i < 10; i++) {
-//            try {
-//                logger.info("[ConsumerApplication]: 尝试调用 RPC #{}",  i + 1);
-//                String name = "吉米-" + i;
-//                String result = helloService.sayHello(name);
-//                logger.info("[ConsumerApplication]: RPC 调用 #{} 结果 for sayHello('{}'): {}", i + 1, name, result);
-//                Thread.sleep(500); // 短暂等待，方便观察日志
-//            } catch (RpcException e) {
-//                logger.error("[ConsumerApplication]: An RpcException occurred during RPC call #{}:{}",  i + 1, ": " + e.getMessage());
-//                if (e.getCause() != null) {
-//                    logger.error("[ConsumerApplication]: Underlying cause: {}", e.getCause().getMessage());
-//                }
-//            } catch (Throwable e) {
-//                logger.error("[ConsumerApplication]: An unexpected error occurred during RPC call #{}: {}", i + 1, e.getMessage());
-//            }
-//        }
-//        logger.info("[ConsumerApplication]: 方法执行结束");
+        // 4.3 进行多次调用，观察负载均衡效果（如果启动多个Provider实例）
+        for (int i = 0; i < 50; i++) {
+            try {
+                logger.info("[ConsumerApplication]: 尝试调用 RPC #{}",  i + 1);
+                String name = "吉米-" + i;
+                String result = helloService.sayHello(name);
+                logger.info("[ConsumerApplication]: RPC 调用 #{} 结果 for sayHello('{}'): {}", i + 1, name, result);
+                Thread.sleep(500); // 短暂等待，方便观察日志
+            } catch (RpcException e) {
+                logger.error("[ConsumerApplication]: An RpcException occurred during RPC call #{}:{}",  i + 1, ": " + e.getMessage());
+                if (e.getCause() != null) {
+                    logger.error("[ConsumerApplication]: Underlying cause: {}", e.getCause().getMessage());
+                }
+            } catch (Throwable e) {
+                logger.error("[ConsumerApplication]: An unexpected error occurred during RPC call #{}: {}", i + 1, e.getMessage());
+            }
+        }
+        logger.info("[ConsumerApplication]: 方法执行结束");
     }
 
 }

@@ -2,9 +2,7 @@ package com.lxy.rpc.core.protocol.codec;
 
 import com.lxy.rpc.api.dto.RpcRequest;
 import com.lxy.rpc.api.dto.RpcResponse;
-import com.lxy.rpc.core.common.constant.MessageConstant;
 import com.lxy.rpc.core.common.constant.RpcErrorMessages;
-import com.lxy.rpc.core.common.exception.ProtocolException;
 import com.lxy.rpc.core.common.exception.RpcCodecException;
 import com.lxy.rpc.core.protocol.MessageHeader;
 import com.lxy.rpc.core.protocol.RpcMessage;
@@ -112,7 +110,7 @@ public class RpcMessageDecoderNetty extends ByteToMessageDecoder {
             case RpcProtocolConstant.MSG_TYPE_HEARTBEAT_PONG:
                 break;
             default:
-                throw new ProtocolException(MessageConstant.UNSUPPORTED_MSG_TYPE);
+                throw new RpcCodecException(RpcErrorMessages.format(RpcErrorMessages.UNEXPECTED_MESSAGE_TYPE, messageType));
         }
 
         MessageHeader header = new MessageHeader(magicNumber, version, serializerAlgorithm,

@@ -2,15 +2,12 @@ package com.lxy.rpc.core.serialization;
 
 import com.lxy.rpc.core.common.constant.RpcErrorMessages;
 import com.lxy.rpc.core.common.exception.RpcSerializationException;
-import com.lxy.rpc.core.common.exception.SerializationException;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 
-import static com.lxy.rpc.core.common.constant.MessageConstant.JDK_DESERIALIZE_FAIL;
-import static com.lxy.rpc.core.common.constant.MessageConstant.JDK_SERIALIZE_FAIL;
 import static com.lxy.rpc.core.common.constant.SerializerAlgorithmConstant.JDK_SERIALIZER_ALGORITHM;
 
 /**

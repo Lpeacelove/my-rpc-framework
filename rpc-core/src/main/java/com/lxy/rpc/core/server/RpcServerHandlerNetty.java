@@ -53,9 +53,6 @@ public class RpcServerHandlerNetty extends SimpleChannelInboundHandler<RpcMessag
                 RpcResponse errorResponse = new RpcResponse();
                 // 设置错误响应的错误状态
                 errorResponse.setException(new RpcException(RpcErrorMessages.format(RpcErrorMessages.NULL_RPC_BODY, -1L)));
-                // 设置响应的请求ID
-                //todo 这里的逻辑要该，但首先要将响应ID统一到消息中
-                errorResponse.setResponseId(rpcRequest.getRequestId());
                 // 创建响应头
                 MessageHeader responseHeader = new MessageHeader(
                         RpcProtocolConstant.MAGIC_NUMBER,
@@ -101,7 +98,6 @@ public class RpcServerHandlerNetty extends SimpleChannelInboundHandler<RpcMessag
             RpcResponse errorResponse = new RpcResponse();
             errorResponse.setException(new RuntimeException("RpcServerHandlerNetty received unknown message type from client "
                     + ctx.channel().remoteAddress()));
-            errorResponse.setResponseId(rpcRequest.getRequestId());
             MessageHeader responseHeader = new MessageHeader(RpcProtocolConstant.MAGIC_NUMBER,
                     RpcProtocolConstant.VERSION,
                     SerializerFactory.getDefaultSerializer().getSerializerAlgorithm(),

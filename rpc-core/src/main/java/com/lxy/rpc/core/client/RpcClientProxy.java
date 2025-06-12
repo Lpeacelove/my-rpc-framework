@@ -12,6 +12,7 @@ import com.lxy.rpc.core.registry.zookeeper.ZookeeperServiceDiscovery;
 import com.lxy.rpc.core.serialization.SerializerFactory;
 import com.lxy.rpc.core.registry.ServiceDiscovery;
 import io.netty.channel.ChannelFutureListener;
+import org.apache.curator.framework.state.ConnectionState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -207,7 +208,6 @@ public class RpcClientProxy implements InvocationHandler {
      */
     private RpcMessage<RpcRequest> getRpcRequestRpcMessage(Method method, Object[] args) {
         RpcRequest request = new RpcRequest(
-                String.valueOf(REQUEST_ID.getAndIncrement()),
                 method.getDeclaringClass().getName(),
                 method.getName(),
                 method.getParameterTypes(),
@@ -221,7 +221,7 @@ public class RpcClientProxy implements InvocationHandler {
                         this.serializerAlgorithm,
                         RpcProtocolConstant.MSG_TYPE_REQUEST,
                         RpcProtocolConstant.STATUS_SUCCESS,
-                        Long.parseLong(request.getRequestId())
+                        REQUEST_ID.getAndIncrement()
                 ),
                 request
         );
@@ -289,22 +289,42 @@ public class RpcClientProxy implements InvocationHandler {
      * 关闭所有缓存的 RpcClient 和 ServiceDiscovery。
      */
     public void shutdown() {
-        logger.info("[RpcClientProxy] 开始停止客户端...");
-        if (this.serviceDiscovery != null) {
-            this.serviceDiscovery.close();
-            logger.info("[RpcClientProxy] 关闭serviceDiscovery");
+        final Long shutdownTimeoutSeconds = 3L; // 设置关闭超时时间为3秒
+        logger.info("[RpcClientProxy] 开始停止客户端..., 时间限制为 {} 秒", shutdownTimeoutSeconds);
+        ExecutorService shutdownServiceDiscoveryExecutor = Executors.newSingleThreadExecutor(
+                r -> new Thread(r, "RpcClientProxyShutdownServiceDiscoveryThread"));
+        Future<?> shutdownServiceDiscoveryFuture = shutdownServiceDiscoveryExecutor.submit(this.serviceDiscovery::close);
+        try {
+            shutdownServiceDiscoveryFuture.get(shutdownTimeoutSeconds, TimeUnit.SECONDS);
+            logger.info("[RpcClientProxy] 停止客户端成功");
+        } catch (TimeoutException e) {
+            shutdownServiceDiscoveryFuture.cancel(true);
+            logger.warn("[RpcClientProxy] 停止客户端超时，已取消任务");
+        } catch (Exception e) {
+            logger.error("[RpcClientProxy] 停止客户端失败", e);
+        } finally {
+            shutdownServiceDiscoveryExecutor.shutdownNow();
         }
+
         if (!this.rpcClientCache.isEmpty()) {
             logger.info("[RpcClientProxy] 正在关闭 {} 个RpcClient实例", rpcClientCache.size());
             // 进行备份，避免迭代过程中出现 ConcurrentModificationException
             List<RpcClient> clientsToClose = new ArrayList<>(rpcClientCache.values());
             rpcClientCache.clear(); // 清理缓存，防止有新的请求进来
             for (RpcClient client : clientsToClose) {
+                ExecutorService shutdownClientExecutor = Executors.newSingleThreadExecutor(
+                        r -> new Thread(r, "RpcClientProxyShutdownClientThread"));
+                Future<?> shutdownClientFuture = shutdownClientExecutor.submit(client::close);
                 try {
-                    logger.info("[RpcClientProxy] 关闭RpcClient实例 {}:{}", client.getHost(), client.getPort());
-                    client.close();
+                    shutdownClientFuture.get(shutdownTimeoutSeconds, TimeUnit.SECONDS);
+                    logger.info("[RpcClientProxy] 关闭RpcClient实例 {}:{}成功", client.getHost(), client.getPort());
+                } catch (TimeoutException e) {
+                    shutdownClientFuture.cancel(true);
+                    logger.warn("[RpcClientProxy] 关闭RpcClient实例 {}:{}超时，已取消任务", client.getHost(), client.getPort());
                 } catch (Exception e) {
                     logger.error("[RpcClientProxy] 错误关闭RpcClient实例 {}:{}", client.getHost(), client.getPort(), e);
+                } finally {
+                    shutdownClientExecutor.shutdownNow();
                 }
             }
         }
