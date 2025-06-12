@@ -28,4 +28,9 @@ public class RoundRobinLoadBalance implements LoadBalanceStrategy{
         }
         return serviceInstances.get(index);
     }
+
+    @Override
+    public String getName() {
+        return "roundrobin";
+    }
 }

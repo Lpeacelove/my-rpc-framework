@@ -19,11 +19,9 @@ public class ProviderApplication {
         // 1. 服务端创建本地注册表并给出zk地址
         LocalServiceRegistry  serviceRegistry = new LocalServiceRegistry(); // 创建本地注册表
         serviceRegistry.register(HelloService.class, new HelloServiceImpl());  // 注册服务到本地注册表
-        String zkAddress = "127.0.0.1:2181";  //  定义zk地址
 
         // 2. 创建并配置RpcServer
-        int port = 8088; // 定义服务端口
-        RpcServer rpcServer = new RpcServer(port, serviceRegistry, zkAddress);  // 创建RpcServer
+        RpcServer rpcServer = new RpcServer(serviceRegistry);  // 创建RpcServer
 
         // 3. 注册JVM shutdown hook
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {

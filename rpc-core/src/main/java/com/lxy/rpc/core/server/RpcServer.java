@@ -2,6 +2,7 @@ package com.lxy.rpc.core.server;
 
 import com.lxy.rpc.core.common.constant.RpcErrorMessages;
 import com.lxy.rpc.core.common.exception.RpcException;
+import com.lxy.rpc.core.config.RpcConfig;
 import com.lxy.rpc.core.protocol.codec.RpcFrameDecoder;
 import com.lxy.rpc.core.protocol.codec.RpcMessageDecoderNetty;
 import com.lxy.rpc.core.protocol.codec.RpcMessageEncoderNetty;
@@ -39,9 +40,10 @@ public class RpcServer {
     private String serverAddress; // 服务器自身地址
     private Channel serverChannel; // 用于保存服务端启动的Channel，便于后面的关闭
 
-    public RpcServer(int port, LocalServiceRegistry localServiceRegistry, String zkAddress) {
-        this.port = port;
+    public RpcServer(LocalServiceRegistry localServiceRegistry) {
+        this.port = RpcConfig.getServerPort();
         this.localServiceRegistry = localServiceRegistry;
+        String zkAddress = RpcConfig.getRegistryZookeeperAddress();
         // 初始化zk服务注册发现
         if (zkAddress != null && !zkAddress.isEmpty()) {
             this.serviceRegistry = new ZookeeperServiceRegistry(zkAddress);
@@ -99,9 +101,9 @@ public class RpcServer {
                             pipeline.addLast("messageDecoder", new RpcMessageDecoderNetty());  // 消息解码器
 
                             // 心跳机制处理
-                            int readerIdlerTimeSeconds = 20;
+                            long readerIdlerTimeSeconds = RpcConfig.getServerHeartbeatReadIdleTimeoutSeconds();
                             pipeline.addLast("idleStateHandler", new IdleStateHandler(readerIdlerTimeSeconds, 0, 60, TimeUnit.SECONDS));
-                            int maxReaderIdleCounts = 3;
+                            int maxReaderIdleCounts = RpcConfig.getServerHeartbeatReadIdleCloseCount();
                             pipeline.addLast("heartbeatHandler", new HeartbeatServerHandler(maxReaderIdleCounts));
 
                             pipeline.addLast("serverHandler", new RpcServerHandlerNetty(requestHandler));  // 服务端处理器

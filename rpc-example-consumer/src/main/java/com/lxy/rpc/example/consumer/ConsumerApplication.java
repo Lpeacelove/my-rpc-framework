@@ -16,8 +16,7 @@ public class ConsumerApplication {
 
         // 1. 创建 RpcClientProxy 实例
         //    参数：服务端主机名/IP，服务端端口，请求超时时间（毫秒）
-        String zkAddress = "127.0.0.1:2181";  //  zk地址
-        RpcClientProxy clientProxy = new RpcClientProxy(zkAddress, 100000L); // 创建RpcClientProxy
+        RpcClientProxy clientProxy = RpcClientProxy.builder().build(); // 创建RpcClientProxy
 
         // 2. 通过代理获取服务接口的实例
         HelloService helloService = clientProxy.getProxy(HelloService.class);

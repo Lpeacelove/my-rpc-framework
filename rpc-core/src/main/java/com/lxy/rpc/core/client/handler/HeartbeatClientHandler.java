@@ -27,11 +27,11 @@ public class HeartbeatClientHandler extends ChannelInboundHandlerAdapter {
     // 心跳信息的序列号
     private static final AtomicLong PING_ID_GENERATOR = new AtomicLong(0);
 
-    private int writerIdleTimeSeconds;
+    private long writerIdleTimeSeconds;
     private int maxReaderIdleBeforeDisconnect;
     private int readerIdleCount;
 
-    public HeartbeatClientHandler(int writerIdleTimeSeconds, int maxReaderIdleBeforeDisconnect) {
+    public HeartbeatClientHandler(long writerIdleTimeSeconds, int maxReaderIdleBeforeDisconnect) {
         this.writerIdleTimeSeconds = writerIdleTimeSeconds;
         this.maxReaderIdleBeforeDisconnect = maxReaderIdleBeforeDisconnect;
     }

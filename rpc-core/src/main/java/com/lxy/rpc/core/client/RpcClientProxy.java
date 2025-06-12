@@ -4,15 +4,15 @@ import com.lxy.rpc.api.dto.RpcRequest;
 import com.lxy.rpc.api.dto.RpcResponse;
 import com.lxy.rpc.core.common.constant.RpcErrorMessages;
 import com.lxy.rpc.core.common.exception.*;
+import com.lxy.rpc.core.config.RpcConfig;
+import com.lxy.rpc.core.loadbalance.LoadBalanceFactory;
 import com.lxy.rpc.core.loadbalance.LoadBalanceStrategy;
-import com.lxy.rpc.core.loadbalance.RoundRobinLoadBalance;
 import com.lxy.rpc.core.protocol.*;
 import com.lxy.rpc.core.registry.zookeeper.RpcFrameworkUtils;
 import com.lxy.rpc.core.registry.zookeeper.ZookeeperServiceDiscovery;
 import com.lxy.rpc.core.serialization.SerializerFactory;
 import com.lxy.rpc.core.registry.ServiceDiscovery;
 import io.netty.channel.ChannelFutureListener;
-import org.apache.curator.framework.state.ConnectionState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,8 +32,6 @@ import java.util.concurrent.atomic.AtomicLong;
 public class RpcClientProxy implements InvocationHandler {
     // 记录日志
     private static final Logger logger = LoggerFactory.getLogger(RpcClientProxy.class);
-
-    // 默认使用默认序列化算法
     private final byte serializerAlgorithm;
 
     // 用于生成请求ID，确保在单个客户端实例中唯一。
@@ -57,25 +55,43 @@ public class RpcClientProxy implements InvocationHandler {
     private final LoadBalanceStrategy loadBalanceStrategy;
 
     /**
-     * 构造函数，使用默认序列化算法和默认超时时间
+     * 构造函数，使用Builder模式进行构造
      */
-    public RpcClientProxy(String zkDiscoveryAddress, long requestTimeoutMillis) {
-        this(zkDiscoveryAddress,  SerializerFactory.getDefaultSerializer().getSerializerAlgorithm(),
-                requestTimeoutMillis, new RoundRobinLoadBalance());  // 使用默认序列化算法和默认负载均衡策略
+    private RpcClientProxy(Builder builder) {
+        this.serializerAlgorithm = builder.serializerAlgorithm != 0 ? builder.serializerAlgorithm : SerializerFactory.getDefaultSerializer().getSerializerAlgorithm();
+        this.requestTimeoutMillis = builder.requestTimeoutMillis > 0 ? builder.requestTimeoutMillis : RpcConfig.getClientDefaultTimeoutMs();
+        this.serviceDiscovery = new ZookeeperServiceDiscovery(builder.zkAddress != null ? builder.zkAddress : RpcConfig.getRegistryZookeeperAddress());
+        this.loadBalanceStrategy = builder.loadBalanceStrategyName != null ? LoadBalanceFactory.getLoadBalanceStrategy(builder.loadBalanceStrategyName) : LoadBalanceFactory.getDefaultLoadBalanceStrategy();
     }
 
-    // 暂时不指定序列化算法使用默认
-    public RpcClientProxy(String zkDiscoveryAddress, byte serializerAlgorithm, long requestTimeoutMillis, LoadBalanceStrategy loadBalanceStrategy) {
-        if (zkDiscoveryAddress == null) {
-            throw new RpcRegistryException("[RpcClientProxy] " + RpcErrorMessages.format(RpcErrorMessages.NULL_ZK_ADDRESS));
-        }
-        this.serviceDiscovery = new ZookeeperServiceDiscovery(zkDiscoveryAddress);
-        this.serializerAlgorithm = serializerAlgorithm;
-        this.requestTimeoutMillis = requestTimeoutMillis > 0 ? requestTimeoutMillis : 5000L;  // 保证超时 > 0
-        this.loadBalanceStrategy = loadBalanceStrategy != null ? loadBalanceStrategy : new RoundRobinLoadBalance();
+    public static class Builder {
+        private byte serializerAlgorithm;
+        private long requestTimeoutMillis;
+        private String zkAddress;
+        private String loadBalanceStrategyName;
 
-        logger.info("[RpcClientProxy] 初始化了服务发现 {}, 采用负载均衡 {}",
-                serviceDiscovery.getClass().getName(), loadBalanceStrategy.getClass().getSimpleName());
+        public Builder serializerAlgorithm(byte serializerAlgorithm) {
+            this.serializerAlgorithm = serializerAlgorithm;
+            return this;
+        }
+        public Builder requestTimeoutMillis(long requestTimeoutMillis) {
+            this.requestTimeoutMillis = requestTimeoutMillis;
+            return this;
+        }
+        public Builder zkAddress(String zkAddress) {
+            this.zkAddress = zkAddress;
+            return this;
+        }
+        public Builder loadBalanceStrategy(String loadBalanceStrategyName) {
+            this.loadBalanceStrategyName = loadBalanceStrategyName;
+            return this;
+        }
+        public RpcClientProxy build() {
+            return new RpcClientProxy(this);
+        }
+    }
+    public static Builder builder() {
+        return new Builder();
     }
 
     //  创建代理对象，在调用对应方法时，会自动调用下面的invoke方法

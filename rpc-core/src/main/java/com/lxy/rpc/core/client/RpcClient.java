@@ -3,6 +3,7 @@ package com.lxy.rpc.core.client;
 import com.lxy.rpc.core.client.handler.HeartbeatClientHandler;
 import com.lxy.rpc.core.common.constant.RpcErrorMessages;
 import com.lxy.rpc.core.common.exception.RpcNetworkException;
+import com.lxy.rpc.core.config.RpcConfig;
 import com.lxy.rpc.core.protocol.RpcMessage;
 import com.lxy.rpc.core.protocol.codec.RpcFrameDecoder;
 import com.lxy.rpc.core.protocol.codec.RpcMessageDecoderNetty;
@@ -107,10 +108,10 @@ public class RpcClient {
                         // 3.3 RpcClientHandler: 客户端的业务逻辑处理器，处理解码后的RpcMessage响应。
 
                         // 心跳处理器
-                        int readerIdlerTimeSeconds = 30;
-                        int writerIdlerTimeSeconds = 10;
+                        long readerIdlerTimeSeconds = RpcConfig.getClientHeartbeatReadIdleTimeoutSeconds();
+                        long writerIdlerTimeSeconds = RpcConfig.getClientHeartbeatWriteIdleTimeoutSeconds();
                         pipeline.addLast("idleStateHandler", new IdleStateHandler(readerIdlerTimeSeconds, writerIdlerTimeSeconds, 60, TimeUnit.SECONDS));
-                        int maxReaderIdleCounts = 3;
+                        int maxReaderIdleCounts = RpcConfig.getClientHeartbeatReadIdleCloseCount();
                         pipeline.addLast("heartbeatHandler", new HeartbeatClientHandler(writerIdlerTimeSeconds, maxReaderIdleCounts));
 
 

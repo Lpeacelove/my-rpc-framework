@@ -15,4 +15,10 @@ public interface LoadBalanceStrategy {
      * @return 选中的实例
      */
     InetSocketAddress select(String serviceName, List<InetSocketAddress> serviceInstances);
+
+    /**
+     * 获取策略名称
+     * @return 策略名称
+     */
+    String getName(); // 策略名称
 }

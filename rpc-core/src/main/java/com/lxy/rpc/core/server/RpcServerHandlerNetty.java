@@ -35,7 +35,8 @@ public class RpcServerHandlerNetty extends SimpleChannelInboundHandler<RpcMessag
      */
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, RpcMessage requestMessage) throws Exception {
-        logger.info("[RpcServerHandlerNetty] received message from client {}: [Type={}, ReqID={}]", ctx.channel().remoteAddress(), requestMessage.getHeader().getMsgType(), requestMessage.getHeader().getRequestID());
+        logger.info("[RpcServerHandlerNetty] received message from client {}: [Type={}, ReqID={}]",
+                ctx.channel().remoteAddress(), requestMessage.getHeader().getMsgType(), requestMessage.getHeader().getRequestID());
         // 初始化要返回给客户端的响应
         RpcMessage responseMessage = null;
         // 读取客户端请求体的内容
@@ -57,7 +58,7 @@ public class RpcServerHandlerNetty extends SimpleChannelInboundHandler<RpcMessag
                 MessageHeader responseHeader = new MessageHeader(
                         RpcProtocolConstant.MAGIC_NUMBER,
                         RpcProtocolConstant.VERSION,
-                        SerializerFactory.getDefaultSerializer().getSerializerAlgorithm(),
+                        requestHeader.getSerializerAlgorithm(),
                         RpcProtocolConstant.MSG_TYPE_RESPONSE,
                         RpcProtocolConstant.STATUS_FAIL,
                         requestHeader.getRequestID());
@@ -72,7 +73,7 @@ public class RpcServerHandlerNetty extends SimpleChannelInboundHandler<RpcMessag
                 MessageHeader responseHeader = new MessageHeader(
                         RpcProtocolConstant.MAGIC_NUMBER,
                         RpcProtocolConstant.VERSION,
-                        SerializerFactory.getDefaultSerializer().getSerializerAlgorithm(),
+                        requestHeader.getSerializerAlgorithm(),
                         RpcProtocolConstant.MSG_TYPE_RESPONSE,
                         RpcProtocolConstant.STATUS_SUCCESS,
                         requestHeader.getRequestID());
@@ -85,7 +86,7 @@ public class RpcServerHandlerNetty extends SimpleChannelInboundHandler<RpcMessag
             MessageHeader responseHeader = new MessageHeader(
                     RpcProtocolConstant.MAGIC_NUMBER,
                     RpcProtocolConstant.VERSION,
-                    SerializerFactory.getDefaultSerializer().getSerializerAlgorithm(),
+                    requestHeader.getSerializerAlgorithm(),
                     RpcProtocolConstant.MSG_TYPE_HEARTBEAT_PONG,
                     RpcProtocolConstant.STATUS_SUCCESS,
                     requestHeader.getRequestID());
@@ -100,7 +101,7 @@ public class RpcServerHandlerNetty extends SimpleChannelInboundHandler<RpcMessag
                     + ctx.channel().remoteAddress()));
             MessageHeader responseHeader = new MessageHeader(RpcProtocolConstant.MAGIC_NUMBER,
                     RpcProtocolConstant.VERSION,
-                    SerializerFactory.getDefaultSerializer().getSerializerAlgorithm(),
+                    requestHeader.getSerializerAlgorithm(),
                     RpcProtocolConstant.MSG_TYPE_RESPONSE,
                     RpcProtocolConstant.STATUS_FAIL,
                     requestHeader.getRequestID());

@@ -21,4 +21,9 @@ public class RandomLoadBalance implements LoadBalanceStrategy{
         int randomIndex = ThreadLocalRandom.current().nextInt(serviceInstances.size());
         return serviceInstances.get(randomIndex);
     }
+
+    @Override
+    public String getName() {
+        return "random";
+    }
 }
