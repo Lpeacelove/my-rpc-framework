@@ -17,6 +17,8 @@ target/
 **/target/
 .idea
 
+**/logs
+
 ### Eclipse ###
 .apt_generated
 .classpath
