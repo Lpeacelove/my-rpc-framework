@@ -28,4 +28,10 @@ public interface Serializer {
      * @return 返回字节标识
      */
     byte getSerializerAlgorithm();
+
+    /**
+     * 获取当前序列化器的名称
+     * @return 返回序列化器的名称
+     */
+    String getSerializerName();
 }

@@ -5,6 +5,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Map;
+import java.util.ServiceLoader;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -18,11 +19,29 @@ public class LoadBalanceFactory {
 
     static {
         logger.info("初始化负载均衡策略...");
-        LoadBalanceStrategy randomLoadBalance = new RandomLoadBalance();
-        NAME_TO_LOAD_BALANCE_STRATEGY_MAP.put(randomLoadBalance.getName(), randomLoadBalance);
-
-        LoadBalanceStrategy roundRobinLoadBalance = new RoundRobinLoadBalance();
-        NAME_TO_LOAD_BALANCE_STRATEGY_MAP.put(roundRobinLoadBalance.getName(), roundRobinLoadBalance);
+        ServiceLoader<LoadBalanceStrategy> loadBalanceStrategyServiceLoader = ServiceLoader.load(LoadBalanceStrategy.class);
+        for (LoadBalanceStrategy loadBalanceStrategy : loadBalanceStrategyServiceLoader) {
+            String name = loadBalanceStrategy.getName();
+            if (name != null && !name.trim().isEmpty()) {
+                if (NAME_TO_LOAD_BALANCE_STRATEGY_MAP.containsKey(name)) {
+                    logger.warn("负载均衡策略名称[{}]已存在，请勿重复注册！", name);
+                } else {
+                    NAME_TO_LOAD_BALANCE_STRATEGY_MAP.put(name, loadBalanceStrategy);
+                    logger.info("注册负载均衡策略[{}]成功！", name);
+                }
+            } else {
+                logger.warn("负载均衡策略[{}]注册失败，请检查名称是否为空！", loadBalanceStrategy.getClass().getName());
+            }
+        }
+        if (NAME_TO_LOAD_BALANCE_STRATEGY_MAP.isEmpty()) {
+            logger.error("没有注册任何负载均衡策略！");
+        }
+        logger.info("负载均衡策略初始化完成！");
+//        LoadBalanceStrategy randomLoadBalance = new RandomLoadBalance();
+//        NAME_TO_LOAD_BALANCE_STRATEGY_MAP.put(randomLoadBalance.getName(), randomLoadBalance);
+//
+//        LoadBalanceStrategy roundRobinLoadBalance = new RoundRobinLoadBalance();
+//        NAME_TO_LOAD_BALANCE_STRATEGY_MAP.put(roundRobinLoadBalance.getName(), roundRobinLoadBalance);
     }
 
     /**

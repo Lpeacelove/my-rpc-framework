@@ -82,4 +82,9 @@ public class KryoSerializer implements Serializer{
     public byte getSerializerAlgorithm() {
         return KRYO_SERIALIZER_ALGORITHM;
     }
+
+    @Override
+    public String getSerializerName() {
+        return "kryo";
+    }
 }

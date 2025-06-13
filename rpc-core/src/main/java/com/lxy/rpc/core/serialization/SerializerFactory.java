@@ -4,29 +4,65 @@ import com.lxy.rpc.core.common.constant.RpcErrorMessages;
 import com.lxy.rpc.core.common.constant.SerializerAlgorithmConstant;
 import com.lxy.rpc.core.common.exception.RpcSerializationException;
 import com.lxy.rpc.core.config.RpcConfig;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Map;
+import java.util.ServiceLoader;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 创建一个工厂类，用于创建序列化器
  */
 public class SerializerFactory {
+    // 日志
+    private static final Logger logger = LoggerFactory.getLogger(SerializerFactory.class);
+
     // 创建一个静态常量，用于加载配置文件时，找到对应的序列化算法
     private static final Map<String, Serializer> NAME_TO_SERIALIZER_MAP = new ConcurrentHashMap<>();
     // 创建一个静态常量，用于存储所有的序列化器, key为序列化算法的编号，value为对应的序列化器, ConcurrentHashMap 是线程安全的
     private static final Map<Byte, Serializer> ALGORITHM_TO_SERIALIZER_MAP = new ConcurrentHashMap<>();
 
     static {
-        // 创建两个序列化器，并添加到MAP中
-        Serializer jdkSerializer = new JdkSerializer();
-        NAME_TO_SERIALIZER_MAP.put(SerializerAlgorithmConstant.JDK_SERIALIZER_ALGORITHM_NAME, jdkSerializer);
-        ALGORITHM_TO_SERIALIZER_MAP.put(SerializerAlgorithmConstant.JDK_SERIALIZER_ALGORITHM, jdkSerializer);
+        logger.info("使用 ServiceLoader 初始化序列化器...");
+        // 创建一个ServiceLoader对象，用于加载所有的序列化器
+        ServiceLoader<Serializer> serviceLoader = ServiceLoader.load(Serializer.class);
 
-        Serializer kryoSerializer = new KryoSerializer();
-        NAME_TO_SERIALIZER_MAP.put(SerializerAlgorithmConstant.KRYO_SERIALIZER_ALGORITHM_NAME, kryoSerializer);
-        ALGORITHM_TO_SERIALIZER_MAP.put(SerializerAlgorithmConstant.KRYO_SERIALIZER_ALGORITHM, kryoSerializer);
-        // 后续其他序列化器也可在此进行注册
+        // 遍历所有的 Serializer对象
+        for (Serializer serializer : serviceLoader) {
+            String name = serializer.getSerializerName();
+            byte algorithmId = serializer.getSerializerAlgorithm();
+
+            if (name != null && !name.trim().isEmpty()) {
+                if (NAME_TO_SERIALIZER_MAP.containsKey(name.toLowerCase())) {
+                    logger.warn("已存在名为{}的序列化器，请勿重复注册", name);
+                } else {
+                    NAME_TO_SERIALIZER_MAP.put(name.toLowerCase(), serializer);
+                    logger.info("已注册名为{}的序列化器", name);
+                }
+            } else {
+                logger.warn("未指定序列化器的名称，请检查配置文件");
+            }
+
+            if (ALGORITHM_TO_SERIALIZER_MAP.containsKey(algorithmId)) {
+                logger.warn("已存在编号{}的序列化器，请勿重复注册", algorithmId);
+            } else {
+                ALGORITHM_TO_SERIALIZER_MAP.put(algorithmId, serializer);
+                logger.info("已注册编号{}的序列化器", algorithmId);
+                // 如果是通过name注册的，确保ID也映射到同一个实例
+                if (name != null && NAME_TO_SERIALIZER_MAP.get(name.toLowerCase()) == serializer) {
+                    logger.debug("已注册编号为{}的序列化器，并已添加名为{}的映射", algorithmId, name);
+                } else if (name != null) {
+                    logger.warn("序列化器已通过 {} 注册，但其编号 {} mapping 不一致", name, algorithmId);
+                }
+            }
+        }
+
+        if (NAME_TO_SERIALIZER_MAP.isEmpty()) {
+            logger.error("未找到任何序列化器，rpc框架可能无法工作，请检查配置文件");
+        } else {
+            logger.info("SerializerFactory 初始化完毕，加载序列化器有 {}", NAME_TO_SERIALIZER_MAP.keySet());
+        }
     }
 
     /**

@@ -1,0 +1,3 @@
+com.lxy.rpc.core.serialization.JdkSerializer
+com.lxy.rpc.core.serialization.KryoSerializer
+# 如果有其他实现，每行写一个其全限定名

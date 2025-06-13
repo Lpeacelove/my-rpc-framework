@@ -58,4 +58,9 @@ public class JdkSerializer implements Serializer{
     public byte getSerializerAlgorithm() {
         return JDK_SERIALIZER_ALGORITHM;
     }
+
+    @Override
+    public String getSerializerName() {
+        return "jdk";
+    }
 }
