@@ -43,9 +43,9 @@ public class KryoSerializer implements Serializer{
     /**
      * Kryo 序列化
      *
-     * @param object
-     * @param <T>
-     * @return
+     * @param object 要进行序列化的对象
+     * @param <T> 泛型
+     * @return byte[]
      */
     @Override
     public <T> byte[] serialize(T object) {
@@ -62,10 +62,10 @@ public class KryoSerializer implements Serializer{
     /**
      * Kryo 反序列化
      *
-     * @param bytes
-     * @param clazz
-     * @param <T>
-     * @return
+     * @param bytes 要进行反序列化的字节数组
+     * @param clazz 目标对象类型
+     * @param <T> 泛型
+     * @return 目标对象
      */
     @Override
     public <T> T deserialize(byte[] bytes, Class<T> clazz) {
@@ -78,11 +78,19 @@ public class KryoSerializer implements Serializer{
 
     }
 
+    /**
+     * 获取序列化算法
+     * @return byte
+     */
     @Override
     public byte getSerializerAlgorithm() {
         return KRYO_SERIALIZER_ALGORITHM;
     }
 
+    /**
+     * 获取序列化算法名称
+     * @return String
+     */
     @Override
     public String getSerializerName() {
         return "kryo";

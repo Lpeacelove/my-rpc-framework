@@ -12,7 +12,10 @@ import java.util.ServiceLoader;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * 创建一个工厂类，用于创建序列化器
+ * 序列化工厂类，用于加载注册文件中的所有序列化器
+ *
+ * @author lxy
+ * @version 1.0
  */
 public class SerializerFactory {
     // 日志
@@ -92,6 +95,11 @@ public class SerializerFactory {
         return serializer;
     }
 
+    /**
+     * 获取指定名称的序列化器
+     * @param serializerName 序列化器的名称
+     * @return Serializer
+     */
     public static Serializer getSerializer(String serializerName) {
         if (serializerName == null || serializerName.trim().isEmpty()) {
             serializerName = RpcConfig.getSerializationDefaultType();

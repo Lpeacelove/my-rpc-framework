@@ -11,15 +11,15 @@ import java.io.ObjectOutputStream;
 import static com.lxy.rpc.core.common.constant.SerializerAlgorithmConstant.JDK_SERIALIZER_ALGORITHM;
 
 /**
- * Java自带序列化实现，V0.1使用
+ * Java自带序列化实现
  */
 public class JdkSerializer implements Serializer{
 
     /**
      * Java自带序列化实现
-     * @param object
-     * @param <T>
-     * @return
+     * @param object 需要序列化的目标对象
+     * @param <T> 目标对象类型
+     * @return 序列化结果
      */
     @Override
     public <T> byte[] serialize(T object) {
@@ -35,10 +35,10 @@ public class JdkSerializer implements Serializer{
 
     /**
      * Java自带反序列化实现
-     * @param bytes
-     * @param clazz
-     * @param <T>
-     * @return
+     * @param bytes 需要反序列化的字节数组
+     * @param clazz 目标对象类型
+     * @param <T> 目标对象类型
+     * @return 反序列化结果
      */
     @Override
     public <T> T deserialize(byte[] bytes, Class<T> clazz) {
@@ -52,13 +52,17 @@ public class JdkSerializer implements Serializer{
 
     /**
      * 获取序列化算法
-     * @return
+     * @return 序列化算法
      */
     @Override
     public byte getSerializerAlgorithm() {
         return JDK_SERIALIZER_ALGORITHM;
     }
 
+    /**
+     * 获取序列化算法名称
+     * @return 序列化算法名称
+     */
     @Override
     public String getSerializerName() {
         return "jdk";

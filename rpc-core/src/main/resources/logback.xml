@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    scan: 当此属性设置为true时，logback会定期扫描此文件以获取更改并自动重新配置自身。默认为每分钟一次。
+    scanPeriod: 设置扫描周期，例如 "30 seconds", "1 minute"。需要配合 scan="true"。
+    debug: 当此属性设置为true时，logback会打印出其内部日志记录，用于诊断logback本身的配置问题。
+-->
+<configuration scan="true" scanPeriod="30 seconds" debug="false">
+
+    <!-- 定义属性，方便在配置中复用 -->
+    <!-- 日志输出格式 -->
+    <property name="LOG_PATTERN"
+              value="%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n" />
+    <!-- 日志文件存放目录 (相对于项目运行的当前目录，或者你可以指定绝对路径) -->
+    <property name="LOG_DIR" value="./logs/my-rpc" /> <!-- 例如，在当前目录下创建logs/my-rpc文件夹 -->
+    <!-- 日志文件名 -->
+    <property name="LOG_FILE_NAME" value="rpc-framework" />
+
+    <!-- ===================================================================== -->
+    <!--                            Appenders (输出目的地)                        -->
+    <!-- ===================================================================== -->
+
+    <!-- 1. ConsoleAppender: 输出到控制台 -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <!-- pattern: 定义日志输出格式 -->
+            <!-- %d{yyyy-MM-dd HH:mm:ss.SSS}: 日期时间，格式可自定义 -->
+            <!-- [%thread]: 输出日志的线程名 -->
+            <!-- %-5level: 日志级别 (TRACE, DEBUG, INFO, WARN, ERROR)，左对齐，宽度5 -->
+            <!-- %logger{36}: Logger的名称 (通常是产生日志的类的全限定名)，{36}表示名称最大长度36个字符，超出会缩短 -->
+            <!-- - (连接符) -->
+            <!-- %msg: 实际的日志消息 -->
+            <!-- %n: 换行符 -->
+            <pattern>${LOG_PATTERN}</pattern>
+            <charset>UTF-8</charset> <!-- 确保控制台输出中文不乱码 -->
+        </encoder>
+    </appender>
+
+    <!-- 2. RollingFileAppender: 输出到文件，并按策略滚动 -->
+    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <!-- file: 当前正在写入的日志文件的路径和名称 -->
+        <file>${LOG_DIR}/${LOG_FILE_NAME}.log</file>
+        <encoder>
+            <pattern>${LOG_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+
+        <!-- rollingPolicy: 定义日志文件如何滚动 -->
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <!-- fileNamePattern: 滚动后的日志文件的命名模式 -->
+            <!-- %d{yyyy-MM-dd}: 按天滚动 -->
+            <!-- .%i: 如果当天日志文件大小超过限制，会用序号区分 (需要SizeAndTimeBasedFNATP) -->
+            <!-- .log.gz: 将滚动的旧日志文件压缩为.gz格式，节省空间 -->
+            <fileNamePattern>${LOG_DIR}/${LOG_FILE_NAME}-%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+            <!-- maxHistory: 保留最近多少天的日志文件，例如30天 -->
+            <maxHistory>30</maxHistory>
+            <!-- totalSizeCap: 所有归档日志文件的总大小上限，例如3GB -->
+            <totalSizeCap>3GB</totalSizeCap>
+            <!-- triggeringPolicy: 与TimeBasedRollingPolicy结合使用，通常是SizeAndTimeBasedFNATP -->
+            <timeBasedFileNamingAndTriggeringPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">
+                <!-- maxFileSize: 当天活动的日志文件达到多大时进行滚动，例如10MB -->
+                <maxFileSize>10MB</maxFileSize>
+            </timeBasedFileNamingAndTriggeringPolicy>
+        </rollingPolicy>
+
+        <!-- (可选) Filter: 可以添加过滤器，例如只让INFO及以上级别的日志写入这个文件 -->
+        <!--
+        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+            <level>INFO</level>
+        </filter>
+        -->
+    </appender>
+
+    <!-- ===================================================================== -->
+    <!--                              Loggers (日志记录器)                        -->
+    <!-- ===================================================================== -->
+
+    <!-- 1. 配置你自己的RPC框架核心包的日志级别 -->
+    <!-- name: 包名。 com.lxy.rpc.core 包及其子包下的所有类的日志都受此配置影响 -->
+    <!-- level: 指定日志级别。只有大于或等于此级别的日志才会被输出。-->
+    <!-- additivity="false": 表示这个logger处理完日志后，不再将日志事件向上传递给它的父logger（即root logger）。
+                           这可以避免日志被重复输出（例如，既被CONSOLE输出，又被root的CONSOLE输出）。 -->
+    <logger name="com.lxy.rpc.core" level="DEBUG" additivity="false">
+        <appender-ref ref="CONSOLE" /> <!-- com.lxy.rpc.core包的日志输出到控制台 -->
+        <appender-ref ref="FILE" />    <!-- com.lxy.rpc.core包的日志也输出到文件 -->
+    </logger>
+
+    <!-- 2. 配置第三方库的日志级别，避免它们输出过多不必要的DEBUG信息 -->
+    <logger name="io.netty" level="INFO" /> <!-- 将Netty的日志级别设为INFO -->
+    <logger name="org.apache.zookeeper" level="INFO" />
+    <logger name="org.apache.curator" level="INFO" />
+    <!-- 对于之前看到的ClientCnxn的ping日志，可以更精确控制 -->
+    <logger name="org.apache.zookeeper.ClientCnxn" level="WARN" /> <!-- 只看ZK客户端连接的警告和错误 -->
+
+
+    <!-- 3. Root Logger: 根日志记录器，是所有logger的祖先 -->
+    <!-- 它会处理所有未被上面明确配置的logger产生的日志事件。 -->
+    <root level="INFO"> <!-- 全局默认日志级别为INFO -->
+        <appender-ref ref="CONSOLE" /> <!-- 默认将日志输出到控制台 -->
+        <!-- <appender-ref ref="FILE" /> --> <!-- 如果希望所有INFO及以上日志都进文件，也加上这个 -->
+    </root>
+
+</configuration>

@@ -75,7 +75,6 @@ public class RpcServer {
 
         try {
             logger.info("[RpcServer] 服务端启动中...");
-            logger.info("[RpcServer] --- Provider Application Starting ---");
             ServerBootstrap serverBootstrap = new ServerBootstrap();
             serverBootstrap.group(bossGroup, workerGroup)
                     .channel(NioServerSocketChannel.class)

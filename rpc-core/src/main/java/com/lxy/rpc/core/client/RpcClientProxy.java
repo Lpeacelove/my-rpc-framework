@@ -27,7 +27,11 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * 用于代理创建客户端代理对象，使用JDK动态代理
+ * RPC 客户端代理工厂，用于创建服务接口的动态代理对象
+ * <p>
+ *     用户通过此工厂创建代理对象，并调用代理对象的方法，实际调用的是RpcClient的invoke方法
+ *     代理内部封装了服务发现、负载均衡、序列化、协议编解码、网络通信等RPC核心逻辑
+ * </p>
  */
 public class RpcClientProxy implements InvocationHandler {
     // 记录日志
@@ -56,6 +60,7 @@ public class RpcClientProxy implements InvocationHandler {
 
     /**
      * 构造函数，使用Builder模式进行构造
+     * @param builder 构建器
      */
     private RpcClientProxy(Builder builder) {
         this.serializerAlgorithm = builder.serializerAlgorithm != 0 ? builder.serializerAlgorithm : SerializerFactory.getDefaultSerializer().getSerializerAlgorithm();
@@ -101,7 +106,6 @@ public class RpcClientProxy implements InvocationHandler {
         // 确保serviceInterface是接口
         if (!serviceInterface.isInterface()) {
             throw new RpcInvokeException("[RpcClientProxy] " + RpcErrorMessages.format(RpcErrorMessages.SERVICE_NOT_AN_INTERFACE));
-//            throw new IllegalArgumentException("RpcClientProxy: serviceInterface 必须是一个接口");
         }
 
         // 获得该服务的服务名称
@@ -143,7 +147,6 @@ public class RpcClientProxy implements InvocationHandler {
         if (selectedInstanceAddress == null) {
             logger.error("[RpcClientProxy] 从服务发现中获取服务 {} 的实例列表成功, 但是没有可用的服务实例", serviceName);
             throw new RpcServiceNotFoundException("[RpcClientProxy] " + RpcErrorMessages.format(RpcErrorMessages.RPC_SERVICE_NOT_FOUND, serviceName));
-//            throw new RegistryException("RpcClientProxy: 从服务发现中获取服务" + serviceName + "的实例列表成功, 但是没有可用的服务实例");
         }
 
         // 3. 获取或创建到选定地址的RpcClient实例

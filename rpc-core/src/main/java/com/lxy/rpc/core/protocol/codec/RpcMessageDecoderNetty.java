@@ -105,9 +105,7 @@ public class RpcMessageDecoderNetty extends ByteToMessageDecoder {
             case RpcProtocolConstant.MSG_TYPE_RESPONSE:
                 data = serializer.deserialize(bodyBytes, RpcResponse.class);
                 break;
-            case RpcProtocolConstant.MSG_TYPE_HEARTBEAT_PING:
-                break;
-            case RpcProtocolConstant.MSG_TYPE_HEARTBEAT_PONG:
+            case RpcProtocolConstant.MSG_TYPE_HEARTBEAT_PING, RpcProtocolConstant.MSG_TYPE_HEARTBEAT_PONG:
                 break;
             default:
                 throw new RpcCodecException(RpcErrorMessages.format(RpcErrorMessages.UNEXPECTED_MESSAGE_TYPE, messageType));
