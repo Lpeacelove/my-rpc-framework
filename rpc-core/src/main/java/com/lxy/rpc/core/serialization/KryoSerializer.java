@@ -35,7 +35,6 @@ public class KryoSerializer implements Serializer{
         kryo.register(Class[].class); // 注册RpcRequest 的参数类型数组
         kryo.register(Object[].class); // 注册RpcRequest 的参数数组
         kryo.register(String.class); // 注册RpcRequest 的参数名称
-        // todo 需要在rpc-api 中添加自定义异常类
         kryo.register(Exception.class); // 注册RpcResponse 的异常
         return kryo;
     });
@@ -52,9 +51,9 @@ public class KryoSerializer implements Serializer{
         try (ByteArrayOutputStream bos = new ByteArrayOutputStream();
              Output output = new Output(bos)) { // Output包装了OutputStream
             kryoThreadLocal.get().writeObject(output, object);
-//            output.flush(); output在close时会自动flush
             return output.toBytes(); // 获取底层流的字节
         } catch (Exception e) {
+            System.out.println("kryo序列化失败" + e);
             throw new RpcSerializationException(RpcErrorMessages.format(RpcErrorMessages.KRYO_SERIALIZE_FAILED, e));
         }
     }

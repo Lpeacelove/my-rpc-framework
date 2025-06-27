@@ -14,6 +14,9 @@ import io.netty.channel.SimpleChannelInboundHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+
 /**
  * 处理客户端请求，调用业务逻辑，发送响应
  */
@@ -21,9 +24,11 @@ public class RpcServerHandlerNetty extends SimpleChannelInboundHandler<RpcMessag
     // 日志
     private static final Logger logger = LoggerFactory.getLogger(RpcServerHandlerNetty.class);
     private final RpcRequestHandler requestHandler;
+    private final ExecutorService businessThreadPool;
 
-    public RpcServerHandlerNetty(RpcRequestHandler requestHandler) {
+    public RpcServerHandlerNetty(RpcRequestHandler requestHandler, ExecutorService businessThreadPool) {
         this.requestHandler = requestHandler;
+        this.businessThreadPool = businessThreadPool;
     }
 
     /**
@@ -37,12 +42,43 @@ public class RpcServerHandlerNetty extends SimpleChannelInboundHandler<RpcMessag
     protected void channelRead0(ChannelHandlerContext ctx, RpcMessage requestMessage) throws Exception {
         logger.info("[RpcServerHandlerNetty] received message from client {}: [Type={}, ReqID={}]",
                 ctx.channel().remoteAddress(), requestMessage.getHeader().getMsgType(), requestMessage.getHeader().getRequestID());
-        // 初始化要返回给客户端的响应
-        RpcMessage responseMessage = null;
         // 读取客户端请求体的内容
         RpcRequest rpcRequest = (RpcRequest) requestMessage.getBody();
-        // 读取客户端请求头
         MessageHeader requestHeader = requestMessage.getHeader();
+
+        // 处理PING类型请求
+        if (requestMessage.getHeader().getMsgType() == RpcProtocolConstant.MSG_TYPE_HEARTBEAT_PING) {
+            // 处理心跳请求，暂时设置返回消息体为null
+            logger.info("[RpcServerHandlerNetty] received heartbeat request from client {}: {}",
+                    ctx.channel().remoteAddress(), rpcRequest);
+            MessageHeader responseHeader = new MessageHeader(
+                    RpcProtocolConstant.MAGIC_NUMBER,
+                    RpcProtocolConstant.VERSION,
+                    requestHeader.getSerializerAlgorithm(),
+                    RpcProtocolConstant.MSG_TYPE_HEARTBEAT_PONG,
+                    RpcProtocolConstant.STATUS_SUCCESS,
+                    requestHeader.getRequestID());
+            writeResponseMessageToNetty(ctx, responseHeader, null);
+        }
+
+        // 处理非request和ping的其他类型
+        if (requestMessage.getHeader().getMsgType() != RpcProtocolConstant.MSG_TYPE_REQUEST) {
+            // 未知消息类型
+            logger.warn("[RpcServerHandlerNetty] received unknown message type from client {}",
+                    ctx.channel().remoteAddress());
+            // 初始化错误消息
+            RpcResponse errorResponse = new RpcResponse();
+            errorResponse.setException(new RuntimeException("RpcServerHandlerNetty received unknown message type from client "
+                    + ctx.channel().remoteAddress()));
+            MessageHeader responseHeader = new MessageHeader(RpcProtocolConstant.MAGIC_NUMBER,
+                    RpcProtocolConstant.VERSION,
+                    requestHeader.getSerializerAlgorithm(),
+                    RpcProtocolConstant.MSG_TYPE_RESPONSE,
+                    RpcProtocolConstant.STATUS_FAIL,
+                    requestHeader.getRequestID());
+            writeResponseMessageToNetty(ctx, responseHeader, errorResponse);
+        }
+
         // 根据消息类型进行处理，得到响应消息
         // 如果是请求消息
         if (requestMessage.getHeader().getMsgType() == RpcProtocolConstant.MSG_TYPE_REQUEST) {
@@ -62,67 +98,84 @@ public class RpcServerHandlerNetty extends SimpleChannelInboundHandler<RpcMessag
                         RpcProtocolConstant.MSG_TYPE_RESPONSE,
                         RpcProtocolConstant.STATUS_FAIL,
                         requestHeader.getRequestID());
-                // 创建响应消息
-                responseMessage = new RpcMessage(responseHeader, errorResponse);
+                writeResponseMessageToNetty(ctx, responseHeader, errorResponse);
             } else { // 如果是正常请求消息
                 logger.info("[RpcServerHandlerNetty] received request from client {}: {}",
                         ctx.channel().remoteAddress(), rpcRequest);
                 // 将请求交给业务逻辑处理
-                RpcResponse rpcResponse = requestHandler.handle(rpcRequest);
-                // 创建响应消息
-                MessageHeader responseHeader = new MessageHeader(
-                        RpcProtocolConstant.MAGIC_NUMBER,
-                        RpcProtocolConstant.VERSION,
-                        requestHeader.getSerializerAlgorithm(),
-                        RpcProtocolConstant.MSG_TYPE_RESPONSE,
-                        RpcProtocolConstant.STATUS_SUCCESS,
-                        requestHeader.getRequestID());
-                responseMessage = new RpcMessage(responseHeader, rpcResponse);
+                // 此处是业务逻辑处理，需要使用线程池处理
+                CompletableFuture.supplyAsync(() -> {
+                    logger.info("[RpcServerHandlerNetty] 在线程池中开始处理请求 from client {}: {}",
+                            ctx.channel().remoteAddress(), rpcRequest);
+                    return requestHandler.handle(rpcRequest);
+                }, businessThreadPool)
+                        .whenCompleteAsync((rpcResponse, throwable) -> {
+                            final String threadName = Thread.currentThread().getName();
+                            final RpcMessage<RpcResponse> responseMessage;
+                            logger.info("[RpcServerHandlerNetty] 在线程池中处理完毕，准备返回结果 to client {}: {}",
+                                    ctx.channel().remoteAddress(), rpcResponse);
+                            // 如果处理过程中有异常，则返回异常信息，throwable 不为 null
+                            if (throwable != null) {
+                                logger.error("[RpcServerHandlerNetty] 处理过程中有异常，准备返回异常信息 to client {}: {}",
+                                        ctx.channel().remoteAddress(), throwable.getMessage());
+                                RpcResponse errorResponse = getErrorResponse(throwable);
+                                MessageHeader responseHeader = new MessageHeader(
+                                        RpcProtocolConstant.MAGIC_NUMBER,
+                                        RpcProtocolConstant.VERSION,
+                                        requestHeader.getSerializerAlgorithm(),
+                                        RpcProtocolConstant.MSG_TYPE_RESPONSE,
+                                        RpcProtocolConstant.STATUS_FAIL,
+                                        requestHeader.getRequestID());
+                                responseMessage = new RpcMessage<>(responseHeader, errorResponse);
+                            } else {
+                                MessageHeader responseHeader = new MessageHeader(
+                                        RpcProtocolConstant.MAGIC_NUMBER,
+                                        RpcProtocolConstant.VERSION,
+                                        requestHeader.getSerializerAlgorithm(),
+                                        RpcProtocolConstant.MSG_TYPE_RESPONSE,
+                                        RpcProtocolConstant.STATUS_SUCCESS,
+                                        requestHeader.getRequestID());
+                                responseMessage = new RpcMessage<>(responseHeader, rpcResponse);
+                            }
+                            ctx.writeAndFlush(responseMessage).addListener((ChannelFutureListener) future -> {
+                                if (future.isSuccess()) {
+                                    logger.debug("[RpcServerHandlerNetty] successfully sent response/pong for request ID {} to {}",
+                                            responseMessage.getHeader().getRequestID(), ctx.channel().remoteAddress());
+                                } else {
+                                    logger.error("[RpcServerHandlerNetty] failed to send response/pong for request ID {} to {}. Cause: {}",
+                                            responseMessage.getHeader().getRequestID(), ctx.channel().remoteAddress(), future.cause().getMessage());
+                                }
+                            });
+                        });
+                logger.info("[RpcServerHandlerNetty] sent response/pong for request ID to {}",
+                        ctx.channel().remoteAddress());
             }
-        } else if (requestMessage.getHeader().getMsgType() == RpcProtocolConstant.MSG_TYPE_HEARTBEAT_PING) {
-            // 处理心跳请求，暂时设置返回消息体为null
-            logger.info("[RpcServerHandlerNetty] received heartbeat request from client {}: {}",
-                    ctx.channel().remoteAddress(), rpcRequest);
-            MessageHeader responseHeader = new MessageHeader(
-                    RpcProtocolConstant.MAGIC_NUMBER,
-                    RpcProtocolConstant.VERSION,
-                    requestHeader.getSerializerAlgorithm(),
-                    RpcProtocolConstant.MSG_TYPE_HEARTBEAT_PONG,
-                    RpcProtocolConstant.STATUS_SUCCESS,
-                    requestHeader.getRequestID());
-            responseMessage = new RpcMessage(responseHeader, null);
+        }
+    }
+
+    private static RpcResponse getErrorResponse(Throwable throwable) {
+        RpcResponse errorResponse = new RpcResponse();
+        Throwable cause = throwable.getCause() != null ? throwable.getCause() : throwable;
+        if (cause instanceof Exception) {
+            errorResponse.setException((Exception) cause);
         } else {
-            // 未知消息类型
-            logger.warn("[RpcServerHandlerNetty] received unknown message type from client {}",
-                    ctx.channel().remoteAddress());
-            // 初始化错误消息
-            RpcResponse errorResponse = new RpcResponse();
-            errorResponse.setException(new RuntimeException("RpcServerHandlerNetty received unknown message type from client "
-                    + ctx.channel().remoteAddress()));
-            MessageHeader responseHeader = new MessageHeader(RpcProtocolConstant.MAGIC_NUMBER,
-                    RpcProtocolConstant.VERSION,
-                    requestHeader.getSerializerAlgorithm(),
-                    RpcProtocolConstant.MSG_TYPE_RESPONSE,
-                    RpcProtocolConstant.STATUS_FAIL,
-                    requestHeader.getRequestID());
-            responseMessage = new RpcMessage(responseHeader, errorResponse);
+            // 如果是 Error，可以封装为 RuntimeException 或其他 Exception 子类
+            errorResponse.setException(new RuntimeException("Unexpected error: " + cause.getClass().getName(), cause));
         }
-        // 发送响应消息
-        if (responseMessage != null) {
-            RpcMessage finalResponseMessage = responseMessage;
-            logger.info("[RpcServerHandlerNetty] sending response to client {}: [Type={}, ReqID={}]",
-                    ctx.channel().remoteAddress(), responseMessage.getHeader().getMsgType(), responseMessage.getHeader().getRequestID());
-            // 添加监听器，当发送成功时，就会调用监听器中的方法，输出日志
-            ctx.writeAndFlush(responseMessage).addListener((ChannelFutureListener) future -> {
-                if (future.isSuccess()) {
-                    logger.debug("[RpcServerHandlerNetty] successfully sent response/pong for request ID {} to {}",
-                            finalResponseMessage.getHeader().getRequestID(), ctx.channel().remoteAddress());
-                } else {
-                    logger.error("[RpcServerHandlerNetty] failed to send response/pong for request ID {} to {}. Cause: {}",
-                            finalResponseMessage.getHeader().getRequestID(), ctx.channel().remoteAddress(), future.cause().getMessage());
-                }
-            });
-        }
+        return errorResponse;
+    }
+
+    public void writeResponseMessageToNetty(ChannelHandlerContext ctx, MessageHeader responseHeader, RpcResponse response) {
+        final RpcMessage<RpcResponse> responseMessage = new RpcMessage<>(responseHeader, response);
+        ctx.writeAndFlush(responseMessage).addListener((ChannelFutureListener) future -> {
+            if (future.isSuccess()) {
+                logger.debug("[RpcServerHandlerNetty] successfully sent response/pong for request ID {} to {}",
+                        responseMessage.getHeader().getRequestID(), ctx.channel().remoteAddress());
+            } else {
+                logger.error("[RpcServerHandlerNetty] failed to send response/pong for request ID {} to {}. Cause: {}",
+                        responseMessage.getHeader().getRequestID(), ctx.channel().remoteAddress(), future.cause().getMessage());
+            }
+        });
     }
 
     /**

@@ -77,6 +77,10 @@ public final class RpcConfig { // 使用final类，确保该类不能被继承
         properties.setProperty("rpc.client.heartbeat.read.idle.timeout.seconds", "70");
         properties.setProperty("rpc.client.heartbeat.read.idle.close.count", "3");
         properties.setProperty("rpc.client.loadbalancer.default.type", "roundRobin");
+        properties.setProperty("rpc.server.business.thread.core", "10");
+        properties.setProperty("rpc.server.business.thread.max", "100");
+        properties.setProperty("rpc.server.business.thread.queue.capacity", "1000");
+        properties.setProperty("rpc.server.business.thread.keepalive.seconds", "60");
     }
 
     // 提供获取各种配置项的方法
@@ -183,5 +187,17 @@ public final class RpcConfig { // 使用final类，确保该类不能被继承
     }
     public static String getClientLoadBalancerDefaultType() {
         return getString("rpc.client.loadbalancer.default.type", "roundRobin");
+    }
+    public static int getServerBusinessThreadCore() {
+        return getInt("rpc.server.business.thread.core", 10);
+    }
+    public static int getServerBusinessThreadMax() {
+        return getInt("rpc.server.business.thread.max", 20);
+    }
+    public static long getServerBusinessThreadKeepaliveSeconds() {
+        return getLong("rpc.server.business.thread.keepalive.seconds", 60);
+    }
+    public static int getServerBusinessThreadQueueCapacity() {
+        return getInt("rpc.server.business.thread.queue.capacity", 500);
     }
 }
