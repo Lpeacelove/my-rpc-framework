@@ -40,11 +40,13 @@ public class RpcServer {
     private EventLoopGroup workerGroup;  // 负责处理已经连接的客户端的请求
     private String serverAddress; // 服务器自身地址
     private Channel serverChannel; // 用于保存服务端启动的Channel，便于后面的关闭
-    private final ExecutorService buinessThreadPool; // 线程池，用于处理RPC请求
+    private final ExecutorService businessThreadPool; // 线程池，用于处理RPC请求
+    private final boolean enableAsysncBusinessLogic;
 
-    public RpcServer(LocalServiceRegistry localServiceRegistry) {
+    public RpcServer(LocalServiceRegistry localServiceRegistry, boolean enableAsysncBusinessLogic) {
         this.port = RpcConfig.getServerPort();
         this.localServiceRegistry = localServiceRegistry;
+        this.enableAsysncBusinessLogic = enableAsysncBusinessLogic;
         String zkAddress = RpcConfig.getRegistryZookeeperAddress();
         // 初始化zk服务注册发现
         if (zkAddress != null && !zkAddress.isEmpty()) {
@@ -72,7 +74,7 @@ public class RpcServer {
                 .setNameFormat("rpc-business-thread-%d")
                 .build();
         // 初始化线程池
-        this.buinessThreadPool = new ThreadPoolExecutor(
+        this.businessThreadPool = new ThreadPoolExecutor(
                 corePoolSize,
                 maxPoolSize,
                 keepAliveTime,
@@ -129,7 +131,7 @@ public class RpcServer {
                             int maxReaderIdleCounts = RpcConfig.getServerHeartbeatReadIdleCloseCount();
                             pipeline.addLast("heartbeatHandler", new HeartbeatServerHandler(maxReaderIdleCounts));
 
-                            pipeline.addLast("serverHandler", new RpcServerHandlerNetty(requestHandler, buinessThreadPool));  // 服务端处理器
+                            pipeline.addLast("serverHandler", new RpcServerHandlerNetty(requestHandler, businessThreadPool, enableAsysncBusinessLogic));  // 服务端处理器
 
 
                         }
@@ -244,19 +246,19 @@ public class RpcServer {
 
     private void shutdownThreadPools() {
         logger.info("[RpcServer] 正在优雅地关闭线程池...");
-        if (buinessThreadPool != null && !buinessThreadPool.isShutdown()) {
+        if (businessThreadPool != null && !businessThreadPool.isShutdown()) {
             try {
                 // shutdown会拒绝新任务，等待所有任务执行完毕
-                buinessThreadPool.shutdown();
+                businessThreadPool.shutdown();
                 // awaitTermination会阻塞当前线程，直到所有任务执行完毕或超时，设置最多等待15秒
-                if (!buinessThreadPool.awaitTermination(15, TimeUnit.SECONDS)) {
+                if (!businessThreadPool.awaitTermination(15, TimeUnit.SECONDS)) {
                     logger.warn("[RpcServer] 线程池优雅关闭超时，正在强制关闭...");
                     // 如果超时还未关闭线程池，则强行关闭，中断正在执行的任务
-                    buinessThreadPool.shutdownNow();
+                    businessThreadPool.shutdownNow();
                 }
             } catch (Exception e) {
                 logger.error("[RpcServer] 线程池优雅关闭失败: {}", e.getMessage());
-                buinessThreadPool.shutdownNow();
+                businessThreadPool.shutdownNow();
                 Thread.currentThread().interrupt();
             }
         } else {

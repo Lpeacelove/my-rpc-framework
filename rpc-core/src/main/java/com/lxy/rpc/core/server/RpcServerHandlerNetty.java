@@ -25,10 +25,12 @@ public class RpcServerHandlerNetty extends SimpleChannelInboundHandler<RpcMessag
     private static final Logger logger = LoggerFactory.getLogger(RpcServerHandlerNetty.class);
     private final RpcRequestHandler requestHandler;
     private final ExecutorService businessThreadPool;
+    private final boolean enableAsync;
 
-    public RpcServerHandlerNetty(RpcRequestHandler requestHandler, ExecutorService businessThreadPool) {
+    public RpcServerHandlerNetty(RpcRequestHandler requestHandler, ExecutorService businessThreadPool, boolean enableAsync) {
         this.requestHandler = requestHandler;
         this.businessThreadPool = businessThreadPool;
+        this.enableAsync = enableAsync;
     }
 
     /**
@@ -102,53 +104,71 @@ public class RpcServerHandlerNetty extends SimpleChannelInboundHandler<RpcMessag
             } else { // 如果是正常请求消息
                 logger.info("[RpcServerHandlerNetty] received request from client {}: {}",
                         ctx.channel().remoteAddress(), rpcRequest);
-                // 将请求交给业务逻辑处理
-                // 此处是业务逻辑处理，需要使用线程池处理
-                CompletableFuture.supplyAsync(() -> {
-                    logger.info("[RpcServerHandlerNetty] 在线程池中开始处理请求 from client {}: {}",
-                            ctx.channel().remoteAddress(), rpcRequest);
-                    return requestHandler.handle(rpcRequest);
-                }, businessThreadPool)
-                        .whenCompleteAsync((rpcResponse, throwable) -> {
-                            final String threadName = Thread.currentThread().getName();
-                            final RpcMessage<RpcResponse> responseMessage;
-                            logger.info("[RpcServerHandlerNetty] 在线程池中处理完毕，准备返回结果 to client {}: {}",
-                                    ctx.channel().remoteAddress(), rpcResponse);
-                            // 如果处理过程中有异常，则返回异常信息，throwable 不为 null
-                            if (throwable != null) {
-                                logger.error("[RpcServerHandlerNetty] 处理过程中有异常，准备返回异常信息 to client {}: {}",
-                                        ctx.channel().remoteAddress(), throwable.getMessage());
-                                RpcResponse errorResponse = getErrorResponse(throwable);
-                                MessageHeader responseHeader = new MessageHeader(
-                                        RpcProtocolConstant.MAGIC_NUMBER,
-                                        RpcProtocolConstant.VERSION,
-                                        requestHeader.getSerializerAlgorithm(),
-                                        RpcProtocolConstant.MSG_TYPE_RESPONSE,
-                                        RpcProtocolConstant.STATUS_FAIL,
-                                        requestHeader.getRequestID());
-                                responseMessage = new RpcMessage<>(responseHeader, errorResponse);
-                            } else {
-                                MessageHeader responseHeader = new MessageHeader(
-                                        RpcProtocolConstant.MAGIC_NUMBER,
-                                        RpcProtocolConstant.VERSION,
-                                        requestHeader.getSerializerAlgorithm(),
-                                        RpcProtocolConstant.MSG_TYPE_RESPONSE,
-                                        RpcProtocolConstant.STATUS_SUCCESS,
-                                        requestHeader.getRequestID());
-                                responseMessage = new RpcMessage<>(responseHeader, rpcResponse);
-                            }
-                            ctx.writeAndFlush(responseMessage).addListener((ChannelFutureListener) future -> {
-                                if (future.isSuccess()) {
-                                    logger.debug("[RpcServerHandlerNetty] successfully sent response/pong for request ID {} to {}",
-                                            responseMessage.getHeader().getRequestID(), ctx.channel().remoteAddress());
+
+                if (enableAsync) {
+                    // 创建异步处理线程
+                    // 将请求交给业务逻辑处理
+                    // 此处是业务逻辑处理，需要使用线程池处理
+                    CompletableFuture.supplyAsync(() -> {
+                        logger.info("[RpcServerHandlerNetty] 在线程池中开始处理请求 from client {}: {}",
+                                ctx.channel().remoteAddress(), rpcRequest);
+                        return requestHandler.handle(rpcRequest);
+                    }, businessThreadPool)
+                            .whenCompleteAsync((rpcResponse, throwable) -> {
+                                final String threadName = Thread.currentThread().getName();
+                                final RpcMessage<RpcResponse> responseMessage;
+                                logger.info("[RpcServerHandlerNetty] 在线程池中处理完毕，准备返回结果 to client {}: {}",
+                                        ctx.channel().remoteAddress(), rpcResponse);
+                                // 如果处理过程中有异常，则返回异常信息，throwable 不为 null
+                                if (throwable != null) {
+                                    logger.error("[RpcServerHandlerNetty] 处理过程中有异常，准备返回异常信息 to client {}: {}",
+                                            ctx.channel().remoteAddress(), throwable.getMessage());
+                                    RpcResponse errorResponse = getErrorResponse(throwable);
+                                    MessageHeader responseHeader = new MessageHeader(
+                                            RpcProtocolConstant.MAGIC_NUMBER,
+                                            RpcProtocolConstant.VERSION,
+                                            requestHeader.getSerializerAlgorithm(),
+                                            RpcProtocolConstant.MSG_TYPE_RESPONSE,
+                                            RpcProtocolConstant.STATUS_FAIL,
+                                            requestHeader.getRequestID());
+                                    responseMessage = new RpcMessage<>(responseHeader, errorResponse);
                                 } else {
-                                    logger.error("[RpcServerHandlerNetty] failed to send response/pong for request ID {} to {}. Cause: {}",
-                                            responseMessage.getHeader().getRequestID(), ctx.channel().remoteAddress(), future.cause().getMessage());
+                                    MessageHeader responseHeader = new MessageHeader(
+                                            RpcProtocolConstant.MAGIC_NUMBER,
+                                            RpcProtocolConstant.VERSION,
+                                            requestHeader.getSerializerAlgorithm(),
+                                            RpcProtocolConstant.MSG_TYPE_RESPONSE,
+                                            RpcProtocolConstant.STATUS_SUCCESS,
+                                            requestHeader.getRequestID());
+                                    responseMessage = new RpcMessage<>(responseHeader, rpcResponse);
                                 }
+                                ctx.writeAndFlush(responseMessage).addListener((ChannelFutureListener) future -> {
+                                    if (future.isSuccess()) {
+                                        logger.debug("[RpcServerHandlerNetty] successfully sent response/pong for request ID {} to {}",
+                                                responseMessage.getHeader().getRequestID(), ctx.channel().remoteAddress());
+                                    } else {
+                                        logger.error("[RpcServerHandlerNetty] failed to send response/pong for request ID {} to {}. Cause: {}",
+                                                responseMessage.getHeader().getRequestID(), ctx.channel().remoteAddress(), future.cause().getMessage());
+                                    }
+                                });
                             });
-                        });
-                logger.info("[RpcServerHandlerNetty] sent response/pong for request ID to {}",
-                        ctx.channel().remoteAddress());
+                    logger.info("[RpcServerHandlerNetty] sent response/pong for request ID to {}",
+                            ctx.channel().remoteAddress());
+                } else {
+                    // 使用同步方式处理请求
+                    logger.info("[RpcServerHandlerNetty] 正在处理请求 from client {}: {}",
+                            ctx.channel().remoteAddress(), rpcRequest);
+                    RpcResponse rpcResponse = requestHandler.handle(rpcRequest);
+                    // 创建响应头
+                    MessageHeader responseHeader = new MessageHeader(
+                            RpcProtocolConstant.MAGIC_NUMBER,
+                            RpcProtocolConstant.VERSION,
+                            requestHeader.getSerializerAlgorithm(),
+                            RpcProtocolConstant.MSG_TYPE_RESPONSE,
+                            RpcProtocolConstant.STATUS_SUCCESS,
+                            requestHeader.getRequestID());
+                    writeResponseMessageToNetty(ctx, responseHeader, rpcResponse);
+                }
             }
         }
     }

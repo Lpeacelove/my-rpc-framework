@@ -21,7 +21,10 @@ public class ProviderApplication {
         serviceRegistry.register(HelloService.class, new HelloServiceImpl());  // 注册服务到本地注册表
 
         // 2. 创建并配置RpcServer
-        RpcServer rpcServer = new RpcServer(serviceRegistry);  // 创建RpcServer
+//        boolean asyncMode = args.length == 0 || !"sync".equalsIgnoreCase(args[0]); // 默认开启异步模式
+        boolean asyncMode = false;
+        logger.info("--- Provider Application Starting in {} mode ---", asyncMode ? "ASYNC" : "SYNC");
+        RpcServer rpcServer = new RpcServer(serviceRegistry, asyncMode);  // 创建RpcServer
 
         // 3. 注册JVM shutdown hook
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
