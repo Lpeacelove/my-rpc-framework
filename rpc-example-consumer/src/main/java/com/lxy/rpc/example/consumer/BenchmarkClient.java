@@ -22,8 +22,8 @@ public class BenchmarkClient {
 
     public static void main(String[] args) throws InterruptedException {
         // 压测参数
-        final int concurrentThreads = 20; // 并发线程数
-        final int totalRequests = 1000; // 总请求数
+        final int concurrentThreads = 100; // 并发线程数
+        final int totalRequests = 5000; // 总请求数
         final int warmupRequests = 200; // 预热请求数
 
         // 准备工作

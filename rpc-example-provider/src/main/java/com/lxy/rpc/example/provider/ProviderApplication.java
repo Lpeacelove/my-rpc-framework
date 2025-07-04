@@ -22,7 +22,7 @@ public class ProviderApplication {
 
         // 2. 创建并配置RpcServer
 //        boolean asyncMode = args.length == 0 || !"sync".equalsIgnoreCase(args[0]); // 默认开启异步模式
-        boolean asyncMode = false;
+        boolean asyncMode = true;
         logger.info("--- Provider Application Starting in {} mode ---", asyncMode ? "ASYNC" : "SYNC");
         RpcServer rpcServer = new RpcServer(serviceRegistry, asyncMode);  // 创建RpcServer
 

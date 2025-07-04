@@ -81,6 +81,9 @@ public final class RpcConfig { // 使用final类，确保该类不能被继承
         properties.setProperty("rpc.server.business.thread.max", "100");
         properties.setProperty("rpc.server.business.thread.queue.capacity", "1000");
         properties.setProperty("rpc.server.business.thread.keepalive.seconds", "60");
+        properties.setProperty("rpc.client.connect.timeout.ms", "5000");
+        properties.setProperty("rpc.client.connect.max.connections", "5");
+        properties.setProperty("rpc.client.connect.max.pending.acquires", "10");
     }
 
     // 提供获取各种配置项的方法
@@ -199,5 +202,14 @@ public final class RpcConfig { // 使用final类，确保该类不能被继承
     }
     public static int getServerBusinessThreadQueueCapacity() {
         return getInt("rpc.server.business.thread.queue.capacity", 500);
+    }
+    public static int getClientConnectTimeoutMillis() {
+        return getInt("rpc.client.connect.timeout.ms", 5000);
+    }
+    public static int getClientConnectMaxConnections() {
+        return getInt("rpc.client.connect.max.connections", 5);
+    }
+    public static int getClientConnectMaxPendingAcquires() {
+        return getInt("rpc.client.connect.max.pending.acquires", 10);
     }
 }

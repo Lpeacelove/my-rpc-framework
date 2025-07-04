@@ -41,12 +41,12 @@ public class RpcServer {
     private String serverAddress; // 服务器自身地址
     private Channel serverChannel; // 用于保存服务端启动的Channel，便于后面的关闭
     private final ExecutorService businessThreadPool; // 线程池，用于处理RPC请求
-    private final boolean enableAsysncBusinessLogic;
+    private final boolean enableAsyncBusinessLogic;
 
-    public RpcServer(LocalServiceRegistry localServiceRegistry, boolean enableAsysncBusinessLogic) {
+    public RpcServer(LocalServiceRegistry localServiceRegistry, boolean enableAsyncBusinessLogic) {
         this.port = RpcConfig.getServerPort();
         this.localServiceRegistry = localServiceRegistry;
-        this.enableAsysncBusinessLogic = enableAsysncBusinessLogic;
+        this.enableAsyncBusinessLogic = enableAsyncBusinessLogic;
         String zkAddress = RpcConfig.getRegistryZookeeperAddress();
         // 初始化zk服务注册发现
         if (zkAddress != null && !zkAddress.isEmpty()) {
@@ -131,7 +131,7 @@ public class RpcServer {
                             int maxReaderIdleCounts = RpcConfig.getServerHeartbeatReadIdleCloseCount();
                             pipeline.addLast("heartbeatHandler", new HeartbeatServerHandler(maxReaderIdleCounts));
 
-                            pipeline.addLast("serverHandler", new RpcServerHandlerNetty(requestHandler, businessThreadPool, enableAsysncBusinessLogic));  // 服务端处理器
+                            pipeline.addLast("serverHandler", new RpcServerHandlerNetty(requestHandler, businessThreadPool, enableAsyncBusinessLogic));  // 服务端处理器
 
 
                         }
